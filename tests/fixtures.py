@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from src.kg_gen import KGGen
+from kg_gen import KGGen
 import os
 import pytest
 

@@ -1,5 +1,5 @@
-from src.kg_gen import KGGen
-from src.kg_gen.models import Graph
+from kg_gen import KGGen
+from kg_gen.models import Graph
 import os
 from fixtures import kg
 from dotenv import load_dotenv
@@ -547,7 +547,7 @@ def test_semhash_deduplication(kg: KGGen):
     - True synonyms (CEO/Chief Executive Officer)
     - Semantic equivalents (joyful/happy)
     """
-    from src.kg_gen.steps._3_deduplicate import DeduplicateMethod
+    from kg_gen.steps._3_deduplicate import DeduplicateMethod
     
     graph = Graph(
         entities={
@@ -615,7 +615,7 @@ def test_lm_based_deduplication(kg: KGGen):
     
     This is what distinguishes LM_BASED from SEMHASH - it understands meaning.
     """
-    from src.kg_gen.steps._3_deduplicate import DeduplicateMethod
+    from kg_gen.steps._3_deduplicate import DeduplicateMethod
     
     graph = Graph(
         entities={
@@ -684,7 +684,7 @@ def test_full_deduplication_comprehensive(kg: KGGen):
     This is the most comprehensive approach.
     Since FULL = SEMHASH + LM_BASED, it catches both structural and semantic duplicates.
     """
-    from src.kg_gen.steps._3_deduplicate import DeduplicateMethod
+    from kg_gen.steps._3_deduplicate import DeduplicateMethod
     
     graph = Graph(
         entities={

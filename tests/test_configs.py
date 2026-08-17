@@ -1,5 +1,5 @@
 import os
-from src.kg_gen import KGGen
+from kg_gen import KGGen
 from dotenv import load_dotenv
 import pytest
 from fixtures import kg
