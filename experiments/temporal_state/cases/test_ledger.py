@@ -88,7 +88,6 @@ class _CorrectionClassifier:
             old_fact_id=old_fact.fact_id,
             new_fact_id=new_fact.fact_id,
             relationship="correction",
-            confidence=1.0,
             decided_at=new_fact.observed_at,
         )
 
@@ -140,7 +139,6 @@ class _TransitionCorrectionClassifier:
             new_fact_id=new_fact.fact_id,
             relationship=relationship,
             transition_time=transition_time,
-            confidence=1.0,
             decided_at=new_fact.observed_at,
         )
 

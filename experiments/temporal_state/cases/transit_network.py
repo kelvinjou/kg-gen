@@ -47,12 +47,8 @@ def _location(
         subject=vehicle,
         relation="located_at",
         object=place,
-        valid_from=datetime(
-            2026, 9, 2, valid_hour, valid_minute, tzinfo=UTC
-        ),
-        observed_at=datetime(
-            2026, 9, 2, observed_hour, observed_minute, tzinfo=UTC
-        ),
+        valid_from=datetime(2026, 9, 2, valid_hour, valid_minute, tzinfo=UTC),
+        observed_at=datetime(2026, 9, 2, observed_hour, observed_minute, tzinfo=UTC),
         source_text=f"{vehicle} was reported at {place}.",
     )
 
@@ -83,7 +79,6 @@ class TransitNetworkOracleClassifier:
             new_fact_id=new_fact.fact_id,
             relationship=relationship,
             transition_time=transition_time,
-            confidence=1.0,
             rationale="Expected label from the parallel transit-network oracle.",
             decided_at=new_fact.observed_at,
         )

@@ -131,7 +131,6 @@ class ReconciliationDecision(BaseModel):
     new_fact_id: str
     relationship: Relationship
     transition_time: datetime | None = None
-    confidence: float = Field(ge=0.0, le=1.0)
     rationale: str = ""
     decided_at: datetime = Field(default_factory=utc_now)
 

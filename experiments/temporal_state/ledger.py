@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any, Protocol
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from experiments.temporal_state.models import (
     ReconciliationDecision,
@@ -34,7 +34,6 @@ class _ClassificationOutput(BaseModel):
 
     relationship: Relationship
     transition_time: datetime | None = None
-    confidence: float = Field(ge=0.0, le=1.0)
     rationale: str = ""
 
 
@@ -116,7 +115,6 @@ For every other label, transition_time must be null.
             new_fact_id=new_fact.fact_id,
             relationship=output.relationship,
             transition_time=output.transition_time,
-            confidence=output.confidence,
             rationale=output.rationale,
         )
 
@@ -181,9 +179,7 @@ class TemporalLedger:
             (candidate_rank, candidate)
             for candidate in effective
             if candidate.fact_id != new_fact.fact_id
-            and (
-                candidate.status == "active" or candidate.triple == new_fact.triple
-            )
+            and (candidate.status == "active" or candidate.triple == new_fact.triple)
             and (candidate_rank := rank(candidate)) is not None
         ]
         ranked.sort(
@@ -205,9 +201,7 @@ class TemporalLedger:
 
         decisions: list[ReconciliationDecision] = []
         knowledge_time = max(utc_now(), new_fact.observed_at)
-        for old_fact in self.retrieve_related_facts(
-            new_fact, known_at=knowledge_time
-        ):
+        for old_fact in self.retrieve_related_facts(new_fact, known_at=knowledge_time):
             decision = self._classifier.classify(old_fact, new_fact)
             self._validate_decision(decision, old_fact, new_fact)
             decisions.append(decision)
@@ -246,7 +240,9 @@ class TemporalLedger:
         self._apply_corrections(resolved, decisions)
         self._apply_contradictions(resolved, decisions)
         self._apply_transitions(resolved, decisions)
-        return tuple(resolved[fact_id] for fact_id in self._facts if fact_id in resolved)
+        return tuple(
+            resolved[fact_id] for fact_id in self._facts if fact_id in resolved
+        )
 
     @staticmethod
     def _validate_decision(
@@ -302,8 +298,7 @@ class TemporalLedger:
         linking_decisions = [
             decision
             for decision in decisions
-            if decision.relationship
-            in {"state_transition", "correction", "duplicate"}
+            if decision.relationship in {"state_transition", "correction", "duplicate"}
             and facts[decision.old_fact_id].status != "disputed"
             and facts[decision.new_fact_id].status != "disputed"
         ]
@@ -383,6 +378,8 @@ class TemporalLedger:
         ]
         if not matching:
             return later.valid_from
-        boundary = max(matching, key=lambda decision: decision.decided_at).transition_time
+        boundary = max(
+            matching, key=lambda decision: decision.decided_at
+        ).transition_time
         assert boundary is not None
         return boundary

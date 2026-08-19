@@ -145,7 +145,6 @@ class WildfireResponseOracleClassifier:
             new_fact_id=new_fact.fact_id,
             relationship=relationship,
             transition_time=transition_time,
-            confidence=1.0,
             rationale="Expected label from the branching wildfire-response oracle.",
             decided_at=new_fact.observed_at,
         )
