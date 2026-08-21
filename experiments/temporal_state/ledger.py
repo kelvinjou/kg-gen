@@ -6,17 +6,54 @@ import json
 import os
 from collections.abc import Iterable
 from datetime import datetime
-from typing import Any, Protocol
+from pathlib import Path
+from typing import Any, Protocol, get_args
 
 from dotenv import load_dotenv
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from experiments.temporal_state.models import (
+    EvidenceResolution,
     ReconciliationDecision,
     Relationship,
     TemporalFact,
     utc_now,
 )
+
+DEFAULT_POLICY_PATH = Path(__file__).with_name("policy.json")
+_EXPECTED_RELATIONSHIPS = frozenset(get_args(Relationship))
+# A relationship in this list may trigger evidence handling after classification.
+# It never changes the epistemic relationship chosen by the first LLM call.
+ENABLED_POLICY_RELATIONSHIPS: list[Relationship] = ["contradiction"]
+
+
+class RelationshipResolutionInstruction(BaseModel):
+    """One expert-authored resolution instruction for a known relationship."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    resolution: str = Field(min_length=1)
+
+
+class ResolutionPolicy(BaseModel):
+    """Minimal plug-in contract for expert-authored resolution guidance."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    name: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+    domain: str = Field(min_length=1)
+    instructions: dict[Relationship, RelationshipResolutionInstruction] = Field(
+        min_length=1
+    )
+
+
+def load_resolution_policy(
+    policy_path: str | Path = DEFAULT_POLICY_PATH,
+) -> ResolutionPolicy:
+    """Load domain guidance that is applied after epistemic classification."""
+    path = Path(policy_path)
+    return ResolutionPolicy.model_validate_json(path.read_text(encoding="utf-8"))
 
 
 class RelationshipClassifier(Protocol):
@@ -69,13 +106,126 @@ For every other label, transition_time must be null.
         model: str | None = None,
         *,
         client: Any | None = None,
+        use_policy: bool = False,
+        policy_path: str | Path | None = None,
+        policy_relationships: Iterable[Relationship] | None = None,
     ) -> None:
-        """Configure LM Studio, optionally reusing an injected compatible client."""
+        """Configure classification and optional post-classification resolution."""
         load_dotenv()
+        self._use_policy = use_policy
+        self._policy = (
+            load_resolution_policy(policy_path or DEFAULT_POLICY_PATH)
+            if use_policy
+            else None
+        )
+        configured_relationships = (
+            ENABLED_POLICY_RELATIONSHIPS
+            if policy_relationships is None
+            else list(policy_relationships)
+        )
+        unknown_relationships = set(configured_relationships) - _EXPECTED_RELATIONSHIPS
+        if unknown_relationships:
+            unknown = ", ".join(sorted(unknown_relationships))
+            raise ValueError(f"unknown policy relationships: {unknown}")
+        if self._policy is not None:
+            missing_instructions = set(configured_relationships) - set(
+                self._policy.instructions
+            )
+            if missing_instructions:
+                missing = ", ".join(sorted(missing_instructions))
+                raise ValueError(f"policy has no instructions for: {missing}")
+        self._policy_relationships = tuple(dict.fromkeys(configured_relationships))
         if client is None:
             client = self._create_lmstudio_client()
         self._client = client
         self._model = model or os.environ["LMSTUDIO_MODEL"]
+
+    @property
+    def use_policy(self) -> bool:
+        """Return whether post-classification evidence handling is active."""
+        return self._use_policy
+
+    @property
+    def policy(self) -> ResolutionPolicy | None:
+        """Return the active evidence-resolution policy, if configured."""
+        return self._policy
+
+    @property
+    def policy_relationships(self) -> tuple[Relationship, ...]:
+        """Return relationships that trigger post-classification policy handling."""
+        return self._policy_relationships
+
+    def _policy_system_instructions(self, relationship: Relationship) -> str:
+        """Build a resolution prompt that cannot revise the prior classification."""
+        if self._policy is None:
+            raise RuntimeError("cannot build policy instructions without a policy")
+
+        selected_policy = {
+            "name": self._policy.name,
+            "version": self._policy.version,
+            "domain": self._policy.domain,
+            "instruction": self._policy.instructions[relationship].model_dump(
+                mode="json"
+            ),
+        }
+        policy_json = json.dumps(selected_policy, indent=2)
+        return (
+            "You resolve nuances between two pieces of evidence after a separate "
+            "epistemic classifier has finished.\n"
+            + f"The immutable epistemic relationship is {relationship}. Do not "
+            + "classify, reclassify, confirm, reject, or return an epistemic "
+            + "relationship. Do not alter the classifier's transition time or "
+            + "rationale. Apply the expert-authored instructions below only to resolve "
+            + "nuances between the evidence. Return one resolution narrative in the "
+            + "expert's own domain-appropriate structure; do not impose a generic "
+            + "checklist, levels, or categories.\n"
+            + policy_json
+        )
+
+    def _request_classification(
+        self,
+        payload: dict[str, Any],
+        *,
+        system_instructions: str,
+    ) -> _ClassificationOutput:
+        """Request and validate one structured classification from the model."""
+        response = self._client.chat.completions.parse(
+            model=self._model,
+            messages=[
+                {"role": "system", "content": system_instructions},
+                {"role": "user", "content": json.dumps(payload, indent=2)},
+            ],
+            response_format=_ClassificationOutput,
+            temperature=0.0,
+        )
+        output = response.choices[0].message.parsed
+        if output is None:
+            raise RuntimeError("relationship classifier returned no structured output")
+        return output
+
+    def _request_policy_resolution(
+        self,
+        payload: dict[str, Any],
+        *,
+        relationship: Relationship,
+    ) -> EvidenceResolution:
+        """Resolve evidence-handling nuance without revising the relationship."""
+        response = self._client.chat.completions.parse(
+            model=self._model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": self._policy_system_instructions(relationship),
+                },
+                {"role": "user", "content": json.dumps(payload, indent=2)},
+            ],
+            response_format=EvidenceResolution,
+            temperature=0.0,
+        )
+        resolution = response.choices[0].message.parsed
+        if resolution is None:
+            raise RuntimeError("policy resolver returned no structured output")
+        return resolution
 
     @classmethod
     def _create_lmstudio_client(cls) -> Any:
@@ -93,29 +243,55 @@ For every other label, transition_time must be null.
     def classify(
         self, old_fact: TemporalFact, new_fact: TemporalFact
     ) -> ReconciliationDecision:
-        """Request a structured pairwise decision from the configured model."""
+        """Classify once, then optionally resolve evidence-handling nuance."""
         payload = {
             "old_fact": old_fact.model_dump(mode="json"),
             "new_fact": new_fact.model_dump(mode="json"),
         }
-        response = self._client.chat.completions.parse(
-            model=self._model,
-            messages=[
-                {"role": "system", "content": self._INSTRUCTIONS},
-                {"role": "user", "content": json.dumps(payload, indent=2)},
-            ],
-            response_format=_ClassificationOutput,
-            temperature=0.0,
+        classification = self._request_classification(
+            payload,
+            system_instructions=self._INSTRUCTIONS,
         )
-        output = response.choices[0].message.parsed
-        if output is None:
-            raise RuntimeError("relationship classifier returned no structured output")
+
+        policy_applied_for: Relationship | None = None
+        policy_resolution: EvidenceResolution | None = None
+        if (
+            self._policy is not None
+            and classification.relationship in self._policy_relationships
+        ):
+            policy_applied_for = classification.relationship
+            policy_payload = {
+                **payload,
+                "epistemic_decision": {
+                    "relationship": classification.relationship,
+                    "transition_time": (
+                        classification.transition_time.isoformat()
+                        if classification.transition_time is not None
+                        else None
+                    ),
+                    "rationale": classification.rationale,
+                },
+                "resolution_policy": {
+                    "applied_for": policy_applied_for,
+                    "name": self._policy.name,
+                    "version": self._policy.version,
+                },
+            }
+            policy_resolution = self._request_policy_resolution(
+                policy_payload,
+                relationship=policy_applied_for,
+            )
+
         return ReconciliationDecision(
             old_fact_id=old_fact.fact_id,
             new_fact_id=new_fact.fact_id,
-            relationship=output.relationship,
-            transition_time=output.transition_time,
-            rationale=output.rationale,
+            relationship=classification.relationship,
+            transition_time=classification.transition_time,
+            rationale=classification.rationale,
+            policy_name=self._policy.name if policy_applied_for else None,
+            policy_version=self._policy.version if policy_applied_for else None,
+            policy_applied_for=policy_applied_for,
+            policy_resolution=policy_resolution,
         )
 
 

@@ -293,13 +293,134 @@
             display: none;
         }
 
+        .manual-override-panel {
+            position: absolute;
+            left: 50%;
+            bottom: 104px;
+            z-index: 13;
+            width: min(920px, calc(100% - 40px));
+            max-height: min(42vh, 430px);
+            overflow-y: auto;
+            transform: translateX(-50%);
+            padding: 14px;
+            border: 1px solid #f59e0b;
+            border-radius: 14px;
+            background: rgba(255, 251, 235, 0.97);
+            box-shadow: 0 12px 30px rgba(120, 53, 15, 0.2);
+            backdrop-filter: blur(8px);
+        }
+
+        .manual-override-panel[hidden] {
+            display: none;
+        }
+
+        .manual-override-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 9px;
+        }
+
+        .manual-override-title {
+            color: #92400e;
+            font-size: 0.86rem;
+            font-weight: 800;
+        }
+
+        .manual-override-help {
+            margin-top: 3px;
+            color: #78716c;
+            font-size: 0.72rem;
+        }
+
+        .manual-override-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 10px;
+        }
+
+        .manual-override-option {
+            min-width: 0;
+            padding: 10px;
+            border: 1px solid #fcd34d;
+            border-radius: 10px;
+            background: #ffffff;
+        }
+
+        .manual-override-option.selected {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16);
+        }
+
+        .manual-override-option pre {
+            max-height: 150px;
+            margin: 0 0 8px;
+            overflow: auto;
+            padding: 8px;
+            border-radius: 7px;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 0.68rem;
+            white-space: pre-wrap;
+        }
+
+        .manual-override-action,
+        .manual-override-clear,
+        .manual-recompute-control {
+            padding: 7px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .manual-override-action {
+            border: 1px solid #2563eb;
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        .manual-override-action:disabled {
+            cursor: default;
+            opacity: 0.7;
+        }
+
+        .manual-override-clear {
+            border: 1px solid #d97706;
+            background: transparent;
+            color: #92400e;
+        }
+
+        .manual-recompute-control {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            margin-top: 10px;
+            border: 1px solid #0f766e;
+            background: #f0fdfa;
+            color: #115e59;
+        }
+
+        .manual-recompute-control input {
+            margin: 0;
+            accent-color: #0f766e;
+            cursor: pointer;
+        }
+
+        .manual-recompute-note {
+            margin-top: 5px;
+            color: #64748b;
+            font-size: 0.68rem;
+        }
+
         .decision-panel {
             position: absolute;
             top: 18px;
             right: 18px;
             z-index: 11;
-            width: min(430px, calc(100% - 36px));
-            max-height: min(46vh, 420px);
+            width: min(480px, calc(100% - 36px));
+            max-height: min(68vh, 680px);
             overflow-y: auto;
             padding: 14px;
             border: 1px solid #cbd5e1;
@@ -371,6 +492,67 @@
             gap: 8px;
         }
 
+        .evidence-section {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .evidence-section-title {
+            margin-bottom: 7px;
+            color: #334155;
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .evidence-card {
+            margin-top: 7px;
+            padding: 10px;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            background: #eff6ff;
+            color: #334155;
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .evidence-triple {
+            overflow-wrap: anywhere;
+            color: #1e3a8a;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-weight: 600;
+        }
+
+        .evidence-meta,
+        .evidence-source {
+            margin-top: 6px;
+        }
+
+        .evidence-meta {
+            color: #64748b;
+        }
+
+        .evidence-raw summary {
+            margin-top: 7px;
+            color: #1d4ed8;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .evidence-raw pre {
+            max-height: 180px;
+            margin: 6px 0 0;
+            overflow: auto;
+            padding: 7px;
+            border-radius: 6px;
+            background: #dbeafe;
+            color: #1e293b;
+            font-size: 0.68rem;
+            white-space: pre-wrap;
+        }
+
         .decision-card {
             padding: 10px;
             border: 1px solid #e2e8f0;
@@ -423,6 +605,23 @@
             color: #64748b;
         }
 
+        .policy-resolution {
+            margin-top: 9px;
+            padding: 9px;
+            border-left: 3px solid #be123c;
+            border-radius: 6px;
+            background: #fff1f2;
+            color: #475569;
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .policy-resolution-title {
+            margin-bottom: 5px;
+            color: #9f1239;
+            font-weight: 700;
+        }
+
         .snapshot-button {
             width: 34px;
             height: 34px;
@@ -443,20 +642,94 @@
             min-width: 0;
         }
 
+        .snapshot-slider-track {
+            position: relative;
+            padding-top: 9px;
+        }
+
         #snapshotSlider {
             display: block;
             width: 100%;
+            margin: 0;
             accent-color: #2563eb;
             cursor: pointer;
         }
 
+        .policy-bookmarks {
+            position: absolute;
+            inset: 0 8px auto;
+            height: 10px;
+            pointer-events: none;
+        }
+
+        .policy-bookmark {
+            position: absolute;
+            top: 0;
+            width: 10px;
+            height: 12px;
+            padding: 0;
+            transform: translateX(-50%);
+            border: 0;
+            border-radius: 2px 2px 0 0;
+            background: #be123c;
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .policy-bookmark.active {
+            background: #7f1d1d;
+            filter: drop-shadow(0 0 3px rgba(190, 18, 60, 0.55));
+        }
+
         .snapshot-caption {
             display: flex;
+            align-items: center;
             justify-content: space-between;
             gap: 12px;
             margin-top: 4px;
             color: #475569;
             font-size: 0.78rem;
+        }
+
+        .snapshot-filter-toggle {
+            display: inline-flex;
+            flex: 0 0 auto;
+            align-items: center;
+            gap: 5px;
+            color: #7f1d1d;
+            cursor: pointer;
+            font-size: 0.72rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .snapshot-filter-toggle input {
+            margin: 0;
+            accent-color: #be123c;
+            cursor: pointer;
+        }
+
+        .snapshot-filter-toggle input:disabled,
+        .snapshot-filter-toggle input:disabled + span {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .snapshot-toggle-group {
+            display: flex;
+            flex: 0 0 auto;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .snapshot-filter-toggle.override-card-toggle {
+            color: #92400e;
+        }
+
+        .snapshot-filter-toggle.override-card-toggle input {
+            accent-color: #d97706;
         }
 
         #snapshotLabel {
@@ -662,12 +935,26 @@
                 <div class="network-panel">
                     <canvas id="networkCanvas"></canvas>
                     <aside class="decision-panel" id="decisionPanel" aria-live="polite"></aside>
+                    <aside class="manual-override-panel" id="manualOverridePanel" aria-live="polite" hidden></aside>
                     <div class="snapshot-controls" id="snapshotControls" hidden>
                         <button class="snapshot-button" id="previousSnapshot" type="button" aria-label="Previous snapshot">&#8592;</button>
                         <div class="snapshot-slider-group">
-                            <input id="snapshotSlider" type="range" min="0" max="0" step="1" value="0" aria-label="Graph snapshot" aria-keyshortcuts="ArrowLeft ArrowRight" />
+                            <div class="snapshot-slider-track">
+                                <input id="snapshotSlider" type="range" min="0" max="0" step="1" value="0" aria-label="Graph snapshot" aria-keyshortcuts="ArrowLeft ArrowRight" />
+                                <div class="policy-bookmarks" id="policyBookmarks" aria-label="Policy override bookmarks"></div>
+                            </div>
                             <div class="snapshot-caption">
                                 <span id="snapshotPosition"></span>
+                                <div class="snapshot-toggle-group">
+                                    <label class="snapshot-filter-toggle" id="policyOnlySnapshotsLabel">
+                                        <input id="policyOnlySnapshots" type="checkbox" />
+                                        <span>Policy events only</span>
+                                    </label>
+                                    <label class="snapshot-filter-toggle override-card-toggle" id="contradictionOverrideCardLabel">
+                                        <input id="showContradictionOverrideCard" type="checkbox" checked />
+                                        <span>Show override card</span>
+                                    </label>
+                                </div>
                                 <span id="snapshotLabel"></span>
                             </div>
                         </div>
@@ -723,13 +1010,34 @@
             const snapshots = isTimeline
                 ? payload.snapshots
                 : [{ label: 'Snapshot 1', data: payload }];
+            const evidenceTimeline = Array.isArray(payload.evidence_timeline)
+                ? payload.evidence_timeline
+                : [];
+            const timelineConfig = payload.timeline_config || {};
             if (!snapshots.length) {
                 console.error('[iframe] No graph snapshots were provided.');
                 return;
             }
 
-            let snapshotIndex = 0;
+            const allSnapshotIndices = snapshots.map((_, index) => index);
+            const policySnapshotIndices = allSnapshotIndices.filter(
+                index => snapshots[index].policy_relevant === true
+            );
+            const hasContradictionOverrides = snapshots.some(
+                snapshot => Array.isArray(snapshot.manual_overrides) &&
+                    snapshot.manual_overrides.length > 0
+            );
+            let policyOnlySnapshots = Boolean(
+                timelineConfig.policy_only_snapshots
+            ) && policySnapshotIndices.length > 0;
+            let showContradictionOverrideCard = true;
+            let visibleSnapshotIndices = policyOnlySnapshots
+                ? policySnapshotIndices
+                : allSnapshotIndices;
+            let snapshotIndex = visibleSnapshotIndices[0] ?? 0;
             let vizData = snapshots[snapshotIndex].data;
+            const manualOverrides = new Map();
+            const recomputedOverrideBranches = new Set();
             console.log('[iframe] Data parsed successfully:', snapshots.length, 'snapshots');
 
             const state = {
@@ -849,16 +1157,71 @@
                 const slider = document.getElementById('snapshotSlider');
                 const previousButton = document.getElementById('previousSnapshot');
                 const nextButton = document.getElementById('nextSnapshot');
+                const policyToggle = document.getElementById('policyOnlySnapshots');
+                const policyToggleLabel = document.getElementById('policyOnlySnapshotsLabel');
+                const overrideCardToggle = document.getElementById(
+                    'showContradictionOverrideCard'
+                );
+                const overrideCardToggleLabel = document.getElementById(
+                    'contradictionOverrideCardLabel'
+                );
+                const visiblePosition = Math.max(
+                    0,
+                    visibleSnapshotIndices.indexOf(snapshotIndex)
+                );
+                const enabledRelationships = Array.isArray(
+                    timelineConfig.enabled_policy_relationships
+                )
+                    ? timelineConfig.enabled_policy_relationships
+                    : [];
+                const recomputedBranchCount = manualOverlaysForSnapshot(snapshotIndex)
+                    .filter(({ conflict }) =>
+                        recomputedOverrideBranches.has(conflict.decision_id)
+                    ).length;
 
                 controls.hidden = snapshots.length <= 1;
-                slider.max = String(snapshots.length - 1);
-                slider.value = String(snapshotIndex);
+                slider.max = String(Math.max(0, visibleSnapshotIndices.length - 1));
+                slider.value = String(visiblePosition);
+                slider.disabled = visibleSnapshotIndices.length <= 1;
+                policyToggle.checked = policyOnlySnapshots;
+                policyToggle.disabled = policySnapshotIndices.length === 0;
+                policyToggleLabel.title = policySnapshotIndices.length
+                    ? `Show only snapshots classified as: ${enabledRelationships.join(', ')}`
+                    : `No snapshots match: ${enabledRelationships.join(', ')}`;
+                overrideCardToggle.checked = showContradictionOverrideCard;
+                overrideCardToggle.disabled = !hasContradictionOverrides;
+                overrideCardToggleLabel.title = hasContradictionOverrides
+                    ? 'Show or hide the manual contradiction override card'
+                    : 'No contradiction override cards are available';
+                const bookmarkContainer = document.getElementById('policyBookmarks');
+                bookmarkContainer.innerHTML = visibleSnapshotIndices.map((index, positionIndex) => {
+                    const snapshot = snapshots[index];
+                    const resolutions = Array.isArray(snapshot.policy_resolutions)
+                        ? snapshot.policy_resolutions
+                        : [];
+                    if (!resolutions.length) return '';
+                    const position = visibleSnapshotIndices.length === 1
+                        ? 0
+                        : (positionIndex / (visibleSnapshotIndices.length - 1)) * 100;
+                    const resolutionLabel = resolutions.join(', ');
+                    const activeClass = index === snapshotIndex ? ' active' : '';
+                    return `<button class="policy-bookmark${activeClass}" ` +
+                        `type="button" data-snapshot-index="${index}" ` +
+                        `style="left: ${position}%" ` +
+                        `aria-label="Policy resolution at snapshot ${index + 1}: ${escapeHtml(resolutionLabel)}" ` +
+                        `title="Policy resolution: ${escapeHtml(resolutionLabel)}"></button>`;
+                }).join('');
                 document.getElementById('snapshotPosition').textContent =
-                    `${snapshotIndex + 1} / ${snapshots.length}`;
+                    (policyOnlySnapshots
+                        ? `${visiblePosition + 1} / ${visibleSnapshotIndices.length} policy events`
+                        : `${snapshotIndex + 1} / ${snapshots.length}`) +
+                    (recomputedBranchCount
+                        ? ` · ${recomputedBranchCount} recomputed branch${recomputedBranchCount === 1 ? '' : 'es'}`
+                        : '');
                 document.getElementById('snapshotLabel').textContent =
                     snapshots[snapshotIndex].label;
-                previousButton.disabled = snapshotIndex === 0;
-                nextButton.disabled = snapshotIndex === snapshots.length - 1;
+                previousButton.disabled = visiblePosition === 0;
+                nextButton.disabled = visiblePosition === visibleSnapshotIndices.length - 1;
             }
 
             function escapeHtml(value) {
@@ -876,11 +1239,20 @@
                 if (!isTimeline) return;
                 const snapshot = snapshots[snapshotIndex];
                 const decisions = Array.isArray(snapshot.decisions) ? snapshot.decisions : [];
+                const evidenceIndices = Array.isArray(snapshot.evidence_indices)
+                    ? snapshot.evidence_indices
+                    : [];
+                const observations = evidenceIndices
+                    .map(index => evidenceTimeline[index]?.observation)
+                    .filter(Boolean);
                 const changes = snapshot.changes || {};
                 const addedCount = Array.isArray(changes.added) ? changes.added.length : 0;
                 const removedCount = Array.isArray(changes.removed) ? changes.removed.length : 0;
 
                 const changeChips = [
+                    observations.length
+                        ? `<span class="change-chip">${observations.length} raw evidence</span>`
+                        : '',
                     addedCount
                         ? `<span class="change-chip added"><span class="pulse-dot"></span>${addedCount} added</span>`
                         : '',
@@ -891,6 +1263,28 @@
                         ? '<span class="change-chip">No edge changes</span>'
                         : ''
                 ].join('');
+
+                const evidenceCards = observations.map(observation => {
+                    const validTo = observation.valid_to
+                        ? ` → ${escapeHtml(observation.valid_to)}`
+                        : ' → open';
+                    const factId = observation.fact_id
+                        ? `<div class="evidence-meta">Fact ID: ${escapeHtml(observation.fact_id)}</div>`
+                        : '';
+                    return `
+                        <article class="evidence-card">
+                            <div class="evidence-triple">${escapeHtml(observation.subject)} —${escapeHtml(observation.relation)}→ ${escapeHtml(observation.object)}</div>
+                            ${factId}
+                            <div class="evidence-meta">Observed: ${escapeHtml(observation.observed_at)}</div>
+                            <div class="evidence-meta">Valid: ${escapeHtml(observation.valid_from || observation.observed_at)}${validTo}</div>
+                            <div class="evidence-source">${escapeHtml(observation.source_text)}</div>
+                            <details class="evidence-raw">
+                                <summary>Raw Observation JSON</summary>
+                                <pre>${escapeHtml(JSON.stringify(observation, null, 2))}</pre>
+                            </details>
+                        </article>
+                    `;
+                }).join('');
 
                 const cards = decisions.map(decision => {
                     const relationship = String(decision.relationship || 'unknown');
@@ -908,6 +1302,13 @@
                     const transition = decision.transition_time
                         ? `<div class="decision-transition">Transition: ${escapeHtml(decision.transition_time)}</div>`
                         : '';
+                    const policy = decision.policy_resolution;
+                    const policyDetails = policy ? `
+                        <div class="policy-resolution">
+                            <div class="policy-resolution-title">Evidence handling · ${escapeHtml(decision.policy_name)}</div>
+                            <div>${escapeHtml(policy.resolution)}</div>
+                        </div>
+                    ` : '';
                     return `
                         <article class="decision-card">
                             <div class="decision-card-row">
@@ -916,19 +1317,421 @@
                             <div class="decision-pair">${escapeHtml(decision.old_fact_id)} → ${escapeHtml(decision.new_fact_id)}</div>
                             ${transition}
                             ${rationale}
+                            ${policyDetails}
                         </article>
                     `;
                 }).join('');
 
                 panel.innerHTML = `
                     <div class="decision-panel-header">
-                        <span class="decision-panel-title">Reconciliation</span>
+                        <span class="decision-panel-title">Evidence &amp; reconciliation</span>
                         <div class="edge-change-summary">${changeChips}</div>
                     </div>
+                    <section class="evidence-section">
+                        <div class="evidence-section-title">Raw observations</div>
+                        ${evidenceCards || '<div class="decision-empty">No raw observations attached to this snapshot.</div>'}
+                    </section>
                     <div class="decision-list">
                         ${cards || '<div class="decision-empty">No pairwise decisions for this observation.</div>'}
                     </div>
                 `;
+            }
+
+            function manualOverlaysForSnapshot(targetIndex) {
+                const overlays = [];
+                const targetEvidenceIndices = Array.isArray(
+                    snapshots[targetIndex].evidence_indices
+                )
+                    ? snapshots[targetIndex].evidence_indices
+                    : [];
+                const targetObservation = targetEvidenceIndices.length
+                    ? evidenceTimeline[
+                        targetEvidenceIndices[targetEvidenceIndices.length - 1]
+                    ]?.observation
+                    : null;
+                const targetTime = targetObservation?.observed_at
+                    ? new Date(targetObservation.observed_at).getTime()
+                    : null;
+                snapshots.forEach((candidateSnapshot, checkpointIndex) => {
+                    const conflicts = Array.isArray(candidateSnapshot.manual_overrides)
+                        ? candidateSnapshot.manual_overrides
+                        : [];
+                    conflicts.forEach(conflict => {
+                        const selectedFactId = manualOverrides.get(conflict.decision_id);
+                        if (!selectedFactId) return;
+                        const appliesLocally = checkpointIndex === targetIndex;
+                        const appliesToBranch =
+                            recomputedOverrideBranches.has(conflict.decision_id) &&
+                            checkpointIndex <= targetIndex;
+                        if (!appliesLocally && !appliesToBranch) return;
+                        const option = Array.isArray(conflict.options)
+                            ? conflict.options.find(
+                                candidate => candidate.fact_id === selectedFactId
+                            )
+                            : null;
+                        if (option?.data) {
+                            const observation = evidenceTimeline[
+                                option.evidence_index
+                            ]?.observation;
+                            const validFrom = observation
+                                ? new Date(
+                                    observation.valid_from || observation.observed_at
+                                ).getTime()
+                                : null;
+                            const validTo = observation?.valid_to
+                                ? new Date(observation.valid_to).getTime()
+                                : null;
+                            if (
+                                targetTime !== null &&
+                                (
+                                    (validFrom !== null && targetTime < validFrom) ||
+                                    (validTo !== null && targetTime >= validTo)
+                                )
+                            ) {
+                                return;
+                            }
+                            overlays.push({
+                                checkpointIndex,
+                                conflict,
+                                option
+                            });
+                        }
+                    });
+                });
+                return overlays;
+            }
+
+            function recomputeViewData(baseData, overlays, targetIndex) {
+                if (!overlays.length) return baseData;
+
+                const nodeTemplates = new Map(
+                    baseData.nodes.map(node => [node.id, node])
+                );
+                const relationMap = new Map();
+                baseData.edges.forEach(edge => {
+                    const key = JSON.stringify([
+                        edge.source,
+                        edge.predicate,
+                        edge.target
+                    ]);
+                    relationMap.set(key, { ...edge });
+                });
+
+                overlays.forEach(({ checkpointIndex, option }) => {
+                    const observation = evidenceTimeline[option.evidence_index]?.observation;
+                    if (!observation) return;
+                    const matchingEdge = option.data.edges.find(edge =>
+                        edge.source === observation.subject &&
+                        edge.predicate === observation.relation &&
+                        edge.target === observation.object
+                    );
+                    option.data.nodes.forEach(node => {
+                        if (
+                            [observation.subject, observation.object].includes(node.id) &&
+                            !nodeTemplates.has(node.id)
+                        ) {
+                            nodeTemplates.set(node.id, node);
+                        }
+                    });
+                    const key = JSON.stringify([
+                        observation.subject,
+                        observation.relation,
+                        observation.object
+                    ]);
+                    relationMap.set(key, {
+                        source: observation.subject,
+                        predicate: observation.relation,
+                        target: observation.object,
+                        cluster: matchingEdge?.cluster ?? null,
+                        color: matchingEdge?.color ?? '#d97706',
+                        tooltip: `${observation.subject} —${observation.relation}→ ${observation.object}`,
+                        updated: checkpointIndex === targetIndex
+                    });
+                });
+
+                const relations = Array.from(relationMap.values()).sort((left, right) =>
+                    left.predicate.localeCompare(right.predicate) ||
+                    left.source.localeCompare(right.source) ||
+                    left.target.localeCompare(right.target)
+                );
+                const degree = new Map();
+                const indegree = new Map();
+                const outdegree = new Map();
+                const neighbors = new Map();
+                const nodeEdges = new Map();
+                const predicateCounts = new Map();
+
+                function increment(counter, key) {
+                    counter.set(key, (counter.get(key) || 0) + 1);
+                }
+
+                function addToSet(mapping, key, value) {
+                    if (!mapping.has(key)) mapping.set(key, new Set());
+                    mapping.get(key).add(value);
+                }
+
+                function edgeLists(nodeId) {
+                    if (!nodeEdges.has(nodeId)) {
+                        nodeEdges.set(nodeId, { incoming: [], outgoing: [] });
+                    }
+                    return nodeEdges.get(nodeId);
+                }
+
+                const edges = relations.map((relation, index) => {
+                    const edgeId = `e${index}`;
+                    increment(degree, relation.source);
+                    increment(degree, relation.target);
+                    increment(outdegree, relation.source);
+                    increment(indegree, relation.target);
+                    increment(predicateCounts, relation.predicate);
+                    addToSet(neighbors, relation.source, relation.target);
+                    addToSet(neighbors, relation.target, relation.source);
+                    edgeLists(relation.source).outgoing.push(edgeId);
+                    edgeLists(relation.target).incoming.push(edgeId);
+                    return { ...relation, id: edgeId };
+                });
+
+                const entityIds = new Set(nodeTemplates.keys());
+                relations.forEach(relation => {
+                    entityIds.add(relation.source);
+                    entityIds.add(relation.target);
+                });
+                const nodes = Array.from(entityIds)
+                    .sort((left, right) => left.localeCompare(right))
+                    .map(entityId => {
+                        const template = nodeTemplates.get(entityId) || {};
+                        const nodeDegree = degree.get(entityId) || 0;
+                        const lists = edgeLists(entityId);
+                        return {
+                            ...template,
+                            id: entityId,
+                            label: template.label || entityId,
+                            cluster: template.cluster ?? null,
+                            color: template.color || '#64748b',
+                            degree: nodeDegree,
+                            indegree: indegree.get(entityId) || 0,
+                            outdegree: outdegree.get(entityId) || 0,
+                            isRepresentative: Boolean(
+                                template.cluster && template.cluster === entityId
+                            ),
+                            radius: 18 + Math.min(nodeDegree, 8) * 2,
+                            neighbors: Array.from(neighbors.get(entityId) || []).sort(),
+                            edgeIds: lists
+                        };
+                    });
+
+                const components = [];
+                const visited = new Set();
+                nodes.forEach(node => {
+                    if (visited.has(node.id)) return;
+                    const queue = [node.id];
+                    const members = [];
+                    visited.add(node.id);
+                    while (queue.length) {
+                        const current = queue.shift();
+                        members.push(current);
+                        (neighbors.get(current) || []).forEach(neighbor => {
+                            if (!visited.has(neighbor)) {
+                                visited.add(neighbor);
+                                queue.push(neighbor);
+                            }
+                        });
+                    }
+                    components.push({
+                        size: members.length,
+                        members: members.sort()
+                    });
+                });
+                components.sort((left, right) =>
+                    right.size - left.size || left.members[0].localeCompare(right.members[0])
+                );
+
+                const topEntities = nodes
+                    .map(node => ({
+                        label: node.label,
+                        degree: node.degree,
+                        indegree: node.indegree,
+                        outdegree: node.outdegree,
+                        cluster: node.cluster
+                    }))
+                    .sort((left, right) =>
+                        right.degree - left.degree || left.label.localeCompare(right.label)
+                    )
+                    .slice(0, 10);
+                const topRelations = Array.from(predicateCounts.entries())
+                    .map(([predicate, count]) => {
+                        const edge = edges.find(candidate => candidate.predicate === predicate);
+                        return {
+                            predicate,
+                            count,
+                            cluster: edge?.cluster ?? null,
+                            color: edge?.color ?? '#64748b'
+                        };
+                    })
+                    .sort((left, right) =>
+                        right.count - left.count ||
+                        left.predicate.localeCompare(right.predicate)
+                    )
+                    .slice(0, 10);
+                const isolatedEntities = nodes
+                    .filter(node => node.degree === 0)
+                    .map(node => node.id);
+                const averageDegree = nodes.length
+                    ? Number(
+                        (
+                            nodes.reduce((total, node) => total + node.degree, 0) /
+                            nodes.length
+                        ).toFixed(2)
+                    )
+                    : 0;
+                const density = nodes.length > 1
+                    ? Number((edges.length / (nodes.length * (nodes.length - 1))).toFixed(3))
+                    : 0;
+
+                return {
+                    ...baseData,
+                    nodes,
+                    edges,
+                    topEntities,
+                    topRelations,
+                    isolatedEntities,
+                    components,
+                    stats: {
+                        ...baseData.stats,
+                        entities: nodes.length,
+                        relations: edges.length,
+                        relationTypes: predicateCounts.size,
+                        isolatedEntities: isolatedEntities.length,
+                        components: components.length,
+                        averageDegree,
+                        density
+                    },
+                    relations: edges.map(edge => ({
+                        source: edge.source,
+                        predicate: edge.predicate,
+                        target: edge.target,
+                        edgeId: edge.id,
+                        color: edge.color
+                    }))
+                };
+            }
+
+            function resolvedSnapshotData(snapshot, targetIndex = snapshotIndex) {
+                return recomputeViewData(
+                    snapshot.data,
+                    manualOverlaysForSnapshot(targetIndex),
+                    targetIndex
+                );
+            }
+
+            function renderManualOverrides() {
+                const panel = document.getElementById('manualOverridePanel');
+                const snapshot = snapshots[snapshotIndex];
+                const conflicts = Array.isArray(snapshot.manual_overrides)
+                    ? snapshot.manual_overrides
+                    : [];
+                panel.hidden = !showContradictionOverrideCard || conflicts.length === 0;
+                if (!showContradictionOverrideCard || !conflicts.length) {
+                    panel.innerHTML = '';
+                    return;
+                }
+
+                panel.innerHTML = conflicts.map(conflict => {
+                    const selectedFactId = manualOverrides.get(conflict.decision_id);
+                    const recomputeSubsequent = recomputedOverrideBranches.has(
+                        conflict.decision_id
+                    );
+                    const checkpointNumber = Number.isInteger(conflict.snapshot_index)
+                        ? conflict.snapshot_index + 1
+                        : snapshotIndex + 1;
+                    const options = Array.isArray(conflict.options) ? conflict.options : [];
+                    const optionCards = options.map(option => {
+                        const observation = evidenceTimeline[option.evidence_index]?.observation;
+                        if (!observation) return '';
+                        const selected = selectedFactId === option.fact_id;
+                        return `
+                            <div class="manual-override-option${selected ? ' selected' : ''}">
+                                <pre>${escapeHtml(JSON.stringify(observation, null, 2))}</pre>
+                                <button class="manual-override-action" type="button"
+                                    data-decision-id="${escapeHtml(conflict.decision_id)}"
+                                    data-fact-id="${escapeHtml(option.fact_id)}"
+                                    ${selected ? 'disabled' : ''}>
+                                    ${selected ? 'Selected for pursuit' : 'Pursue this evidence'}
+                                </button>
+                            </div>
+                        `;
+                    }).join('');
+                    return `
+                        <section>
+                            <div class="manual-override-header">
+                                <div>
+                                    <div class="manual-override-title">Manual contradiction override</div>
+                                    <div class="manual-override-help">Choose which raw observation to pursue. This is a local user selection and does not call an LLM or alter provenance.</div>
+                                </div>
+                                ${selectedFactId
+                                    ? `<button class="manual-override-clear" type="button" data-clear-decision-id="${escapeHtml(conflict.decision_id)}">Clear selection</button>`
+                                    : ''}
+                            </div>
+                            <div class="manual-override-options">${optionCards}</div>
+                            ${selectedFactId ? `
+                                <label class="manual-recompute-control">
+                                    <input class="manual-recompute-toggle" type="checkbox"
+                                        data-decision-id="${escapeHtml(conflict.decision_id)}"
+                                        ${recomputeSubsequent ? 'checked' : ''} />
+                                    <span>Recompute snapshots from checkpoint ${checkpointNumber} onward</span>
+                                </label>
+                                <div class="manual-recompute-note">
+                                    Rebuilds subsequent graph views with the selected evidence locally. The original timeline and provenance remain preserved; no LLM is called.
+                                </div>
+                            ` : ''}
+                        </section>
+                    `;
+                }).join('');
+            }
+
+            function applyManualOverride(decisionId, factId) {
+                if (factId) {
+                    manualOverrides.set(decisionId, factId);
+                } else {
+                    manualOverrides.delete(decisionId);
+                    recomputedOverrideBranches.delete(decisionId);
+                }
+                vizData = resolvedSnapshotData(snapshots[snapshotIndex]);
+                state.activeElement = null;
+                state.focusCluster = null;
+                state.focusPredicate = null;
+                rebuildIndexes();
+                renderStats();
+                renderTopLists();
+                renderClusters();
+                renderSelectionDetails();
+                renderSnapshotControls();
+                renderManualOverrides();
+                refreshNetwork();
+                startUpdatedEdgePulse();
+                updateHighlights();
+            }
+
+            function setRecomputedOverrideBranch(decisionId, enabled) {
+                if (enabled && manualOverrides.has(decisionId)) {
+                    recomputedOverrideBranches.add(decisionId);
+                } else {
+                    recomputedOverrideBranches.delete(decisionId);
+                }
+                vizData = resolvedSnapshotData(snapshots[snapshotIndex]);
+                state.activeElement = null;
+                state.focusCluster = null;
+                state.focusPredicate = null;
+                rebuildIndexes();
+                renderStats();
+                renderTopLists();
+                renderClusters();
+                renderSelectionDetails();
+                renderSnapshotControls();
+                renderManualOverrides();
+                refreshNetwork();
+                startUpdatedEdgePulse();
+                updateHighlights();
             }
 
             function activateSnapshot(index) {
@@ -936,7 +1739,7 @@
                 if (nextIndex === snapshotIndex) return;
 
                 snapshotIndex = nextIndex;
-                vizData = snapshots[snapshotIndex].data;
+                vizData = resolvedSnapshotData(snapshots[snapshotIndex]);
                 state.activeElement = null;
                 state.focusCluster = null;
                 state.focusPredicate = null;
@@ -948,6 +1751,7 @@
                 renderSelectionDetails();
                 renderSnapshotControls();
                 renderDecisions();
+                renderManualOverrides();
                 refreshNetwork();
                 startUpdatedEdgePulse();
                 updateHighlights();
@@ -959,6 +1763,33 @@
                         label: snapshots[snapshotIndex].label,
                         data: vizData
                     }, '*');
+                }
+            }
+
+            function activateVisibleSnapshot(position) {
+                const nextPosition = Math.max(
+                    0,
+                    Math.min(visibleSnapshotIndices.length - 1, position)
+                );
+                activateSnapshot(visibleSnapshotIndices[nextPosition]);
+            }
+
+            function setPolicyOnlySnapshots(enabled) {
+                policyOnlySnapshots = Boolean(enabled) && policySnapshotIndices.length > 0;
+                visibleSnapshotIndices = policyOnlySnapshots
+                    ? policySnapshotIndices
+                    : allSnapshotIndices;
+
+                let nextIndex = snapshotIndex;
+                if (!visibleSnapshotIndices.includes(nextIndex)) {
+                    nextIndex = visibleSnapshotIndices.find(index => index >= snapshotIndex)
+                        ?? visibleSnapshotIndices[visibleSnapshotIndices.length - 1];
+                }
+
+                if (nextIndex === snapshotIndex) {
+                    renderSnapshotControls();
+                } else {
+                    activateSnapshot(nextIndex);
                 }
             }
 
@@ -1874,13 +2705,53 @@
                 });
 
                 document.getElementById('snapshotSlider').addEventListener('input', event => {
-                    activateSnapshot(Number(event.target.value));
+                    activateVisibleSnapshot(Number(event.target.value));
+                });
+                document.getElementById('policyOnlySnapshots').addEventListener('change', event => {
+                    setPolicyOnlySnapshots(event.target.checked);
+                });
+                document.getElementById('showContradictionOverrideCard').addEventListener('change', event => {
+                    showContradictionOverrideCard = event.target.checked;
+                    renderManualOverrides();
+                });
+                document.getElementById('policyBookmarks').addEventListener('click', event => {
+                    const bookmark = event.target.closest('.policy-bookmark');
+                    if (bookmark) {
+                        activateSnapshot(Number(bookmark.dataset.snapshotIndex));
+                    }
+                });
+                document.getElementById('manualOverridePanel').addEventListener('click', event => {
+                    const selectButton = event.target.closest('.manual-override-action');
+                    if (selectButton) {
+                        applyManualOverride(
+                            selectButton.dataset.decisionId,
+                            selectButton.dataset.factId
+                        );
+                        return;
+                    }
+                    const clearButton = event.target.closest('.manual-override-clear');
+                    if (clearButton) {
+                        applyManualOverride(clearButton.dataset.clearDecisionId, null);
+                    }
+                });
+                document.getElementById('manualOverridePanel').addEventListener('change', event => {
+                    const recomputeToggle = event.target.closest('.manual-recompute-toggle');
+                    if (recomputeToggle) {
+                        setRecomputedOverrideBranch(
+                            recomputeToggle.dataset.decisionId,
+                            recomputeToggle.checked
+                        );
+                    }
                 });
                 document.getElementById('previousSnapshot').addEventListener('click', () => {
-                    activateSnapshot(snapshotIndex - 1);
+                    activateVisibleSnapshot(
+                        visibleSnapshotIndices.indexOf(snapshotIndex) - 1
+                    );
                 });
                 document.getElementById('nextSnapshot').addEventListener('click', () => {
-                    activateSnapshot(snapshotIndex + 1);
+                    activateVisibleSnapshot(
+                        visibleSnapshotIndices.indexOf(snapshotIndex) + 1
+                    );
                 });
                 document.addEventListener('keydown', event => {
                     if (
@@ -1899,11 +2770,12 @@
                         target.isContentEditable ||
                         ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
                     );
-                    if (isEditable || snapshots.length <= 1) return;
+                    if (isEditable || visibleSnapshotIndices.length <= 1) return;
 
                     event.preventDefault();
-                    activateSnapshot(
-                        snapshotIndex + (event.key === 'ArrowRight' ? 1 : -1)
+                    activateVisibleSnapshot(
+                        visibleSnapshotIndices.indexOf(snapshotIndex) +
+                        (event.key === 'ArrowRight' ? 1 : -1)
                     );
                 });
 
@@ -1976,6 +2848,7 @@
             renderClusters();
             renderSnapshotControls();
             renderDecisions();
+            renderManualOverrides();
             // renderRelationsTable();
             // renderInsights();
 

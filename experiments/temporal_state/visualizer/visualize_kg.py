@@ -12,7 +12,13 @@ import webbrowser
 
 from kg_gen.models import Graph
 
-from experiments.temporal_state.models import ReconciliationDecision, Relation
+from experiments.temporal_state.ledger import ENABLED_POLICY_RELATIONSHIPS
+from experiments.temporal_state.models import (
+    Observation,
+    ReconciliationDecision,
+    Relation,
+    Relationship,
+)
 
 
 def _string_to_color(label: str) -> str:
@@ -297,9 +303,12 @@ def _write_visualization(
     open_in_browser: bool,
 ) -> Path:
     """Inject visualization data into the template and write the HTML file."""
+    serialized_payload = json.dumps(payload, ensure_ascii=False, indent=2).replace(
+        "</", "<\\/"
+    )
     html = HTML_TEMPLATE.replace(
         "<!--DATA-->",
-        json.dumps(payload, ensure_ascii=False, indent=2),
+        serialized_payload,
     )
 
     # Make sidebar visible for standalone mode by removing display: none.
@@ -347,20 +356,34 @@ def visualize(
 
 def visualize_snapshots(
     snapshots: Iterable[
-        tuple[str, Graph] | tuple[str, Graph, Iterable[ReconciliationDecision]]
+        tuple[str, Graph]
+        | tuple[str, Graph, Iterable[ReconciliationDecision]]
+        | tuple[
+            str,
+            Graph,
+            Iterable[ReconciliationDecision],
+            Observation | Iterable[Observation],
+        ]
     ],
     output_path: str | None = None,
     *,
     open_in_browser: bool = False,
+    policy_only_snapshots: bool = False,
+    enabled_policy_relationships: Iterable[Relationship] | None = None,
 ) -> Path:
     """Render multiple labeled graph snapshots into one timeline visualization.
 
     Args:
-        snapshots: Ordered ``(label, graph)`` or ``(label, graph, decisions)``
-            tuples. Labels are displayed beside the timeline slider and should
-            normally identify each time interval.
+        snapshots: Ordered ``(label, graph)``, ``(label, graph, decisions)``, or
+            ``(label, graph, decisions, observations)`` tuples. The fourth value
+            accepts one raw Observation or an iterable of them. Labels are displayed
+            beside the timeline slider and should identify each time interval.
         output_path: Optional path where the HTML document should be stored.
         open_in_browser: When True, open the generated file in the default browser.
+        policy_only_snapshots: Initial state of the HTML policy-event filter.
+            All snapshots are still computed and embedded when this is True.
+        enabled_policy_relationships: Relationships that qualify a snapshot for
+            the policy-event filter. Defaults to ``ENABLED_POLICY_RELATIONSHIPS``.
 
     Returns:
         Path to the generated HTML file.
@@ -368,19 +391,116 @@ def visualize_snapshots(
     snapshot_list = list(snapshots)
     if not snapshot_list:
         raise ValueError("Cannot visualize an empty snapshot sequence")
+    enabled_relationships = tuple(
+        dict.fromkeys(
+            ENABLED_POLICY_RELATIONSHIPS
+            if enabled_policy_relationships is None
+            else enabled_policy_relationships
+        )
+    )
+    enabled_relationship_set = set(enabled_relationships)
 
     rendered_snapshots = []
+    evidence_timeline = []
+    evidence_index_by_fact_id: dict[str, int] = {}
     previous_relations: set[Relation] = set()
-    for snapshot in snapshot_list:
+    for snapshot_index, snapshot in enumerate(snapshot_list):
         if len(snapshot) == 2:
             label, graph = snapshot
             decisions: Iterable[ReconciliationDecision] = ()
-        else:
+            observations: Observation | Iterable[Observation] = ()
+        elif len(snapshot) == 3:
             label, graph, decisions = snapshot
+            observations = ()
+        elif len(snapshot) == 4:
+            label, graph, decisions, observations = snapshot
+        else:
+            raise ValueError("snapshot tuples must contain 2, 3, or 4 values")
+
+        observation_list = (
+            [observations]
+            if isinstance(observations, Observation)
+            else list(observations)
+        )
+        if not all(
+            isinstance(observation, Observation) for observation in observation_list
+        ):
+            raise TypeError("snapshot evidence must contain Observation instances")
+
+        evidence_indices = []
+        for observation in observation_list:
+            evidence_index = len(evidence_timeline)
+            evidence_indices.append(evidence_index)
+            evidence_timeline.append(
+                {
+                    "snapshot_index": snapshot_index,
+                    "snapshot_label": str(label),
+                    "observation": observation.model_dump(mode="json"),
+                }
+            )
+            if observation.fact_id is not None:
+                evidence_index_by_fact_id[observation.fact_id] = evidence_index
 
         current_relations = set(graph.relations)
         added_relations = current_relations - previous_relations
         removed_relations = previous_relations - current_relations
+        decision_list = list(decisions)
+        epistemic_relationships = sorted(
+            {decision.relationship for decision in decision_list}
+        )
+        policy_resolutions = sorted(
+            {
+                decision.policy_applied_for
+                for decision in decision_list
+                if decision.policy_applied_for is not None
+            }
+        )
+        manual_overrides = []
+        for decision in decision_list:
+            if decision.relationship != "contradiction":
+                continue
+            option_indices = [
+                evidence_index_by_fact_id.get(decision.old_fact_id),
+                evidence_index_by_fact_id.get(decision.new_fact_id),
+            ]
+            if any(index is None for index in option_indices):
+                continue
+
+            options = []
+            for evidence_index in option_indices:
+                if evidence_index is None:
+                    continue
+                observation = evidence_timeline[evidence_index]["observation"]
+                relation = (
+                    observation["subject"],
+                    observation["relation"],
+                    observation["object"],
+                )
+                override_graph = graph.model_copy(
+                    update={
+                        "entities": set(graph.entities)
+                        | {observation["subject"], observation["object"]},
+                        "edges": set(graph.edges) | {observation["relation"]},
+                        "relations": set(graph.relations) | {relation},
+                    }
+                )
+                options.append(
+                    {
+                        "fact_id": observation["fact_id"],
+                        "evidence_index": evidence_index,
+                        "data": _build_view_model(
+                            override_graph,
+                            updated_relations={relation},
+                        ),
+                    }
+                )
+            manual_overrides.append(
+                {
+                    "decision_id": decision.decision_id,
+                    "snapshot_index": snapshot_index,
+                    "options": options,
+                }
+            )
         rendered_snapshots.append(
             {
                 "label": str(label),
@@ -389,8 +509,15 @@ def visualize_snapshots(
                     updated_relations=added_relations,
                 ),
                 "decisions": [
-                    decision.model_dump(mode="json") for decision in decisions
+                    decision.model_dump(mode="json") for decision in decision_list
                 ],
+                "epistemic_relationships": epistemic_relationships,
+                "policy_relevant": bool(
+                    set(epistemic_relationships) & enabled_relationship_set
+                ),
+                "policy_resolutions": policy_resolutions,
+                "evidence_indices": evidence_indices,
+                "manual_overrides": manual_overrides,
                 "changes": {
                     "added": [list(relation) for relation in sorted(added_relations)],
                     "removed": [
@@ -402,7 +529,14 @@ def visualize_snapshots(
         previous_relations = current_relations
 
     return _write_visualization(
-        {"snapshots": rendered_snapshots},
+        {
+            "snapshots": rendered_snapshots,
+            "evidence_timeline": evidence_timeline,
+            "timeline_config": {
+                "policy_only_snapshots": policy_only_snapshots,
+                "enabled_policy_relationships": list(enabled_relationships),
+            },
+        },
         output_path,
         open_in_browser=open_in_browser,
     )

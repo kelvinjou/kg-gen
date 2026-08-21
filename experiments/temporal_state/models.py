@@ -121,6 +121,14 @@ class TemporalFact(BaseModel):
         )
 
 
+class EvidenceResolution(BaseModel):
+    """Policy-guided handling details that do not alter an epistemic decision."""
+
+    model_config = ConfigDict(frozen=True)
+
+    resolution: str = Field(min_length=1)
+
+
 class ReconciliationDecision(BaseModel):
     """An immutable runtime classification between two ledger facts."""
 
@@ -132,6 +140,10 @@ class ReconciliationDecision(BaseModel):
     relationship: Relationship
     transition_time: datetime | None = None
     rationale: str = ""
+    policy_name: str | None = None
+    policy_version: str | None = None
+    policy_applied_for: Relationship | None = None
+    policy_resolution: EvidenceResolution | None = None
     decided_at: datetime = Field(default_factory=utc_now)
 
     @field_validator("transition_time", "decided_at")
@@ -151,6 +163,19 @@ class ReconciliationDecision(BaseModel):
             raise ValueError("state transitions require transition_time")
         if self.relationship != "state_transition" and self.transition_time is not None:
             raise ValueError("only state transitions may set transition_time")
+        policy_metadata = (
+            self.policy_name,
+            self.policy_version,
+            self.policy_applied_for,
+            self.policy_resolution,
+        )
+        if any(value is not None for value in policy_metadata) and not all(
+            value is not None for value in policy_metadata
+        ):
+            raise ValueError(
+                "policy_name, policy_version, policy_applied_for, and "
+                "policy_resolution must be set together"
+            )
         return self
 
 

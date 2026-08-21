@@ -1,9 +1,11 @@
-"""Run the noisy harbor example with LM Studio reconciliation."""
+"""Run and visualize the 20-observation contradiction case with LM Studio."""
 
 from __future__ import annotations
 
 from experiments.temporal_state.annotate import TemporalAnnotator
-from experiments.temporal_state.cases.noisy_harbor import noisy_harbor_observations
+from experiments.temporal_state.cases.nonconsecutive_contradictions import (
+    nonconsecutive_contradiction_observations,
+)
 from experiments.temporal_state.ledger import (
     ENABLED_POLICY_RELATIONSHIPS,
     OpenAIRelationshipClassifier,
@@ -17,7 +19,7 @@ POLICY_ONLY_SNAPSHOTS = False
 
 
 def run() -> None:
-    """Ingest noisy harbor reports and visualize each observed state."""
+    """Ingest all observations and retain each one in a single HTML timeline."""
     annotator = TemporalAnnotator()
     ledger = TemporalLedger(
         OpenAIRelationshipClassifier(
@@ -27,7 +29,7 @@ def run() -> None:
     )
     snapshots = []
 
-    for observation in noisy_harbor_observations():
+    for observation in nonconsecutive_contradiction_observations():
         fact = annotator.annotate(observation)
         decisions = ledger.ingest(fact)
         graph = project_graph(
@@ -41,12 +43,10 @@ def run() -> None:
 
         labels = ", ".join(decision.relationship for decision in decisions) or "none"
         print(f"{fact.fact_id}: decisions={labels}")
-        for relation in sorted(graph.relations):
-            print(f"  {relation}")
 
     visualize_snapshots(
         snapshots,
-        "experiments/temporal_state/output/harbor.html",
+        "experiments/temporal_state/output/nonconsecutive-contradictions.html",
         open_in_browser=True,
         policy_only_snapshots=POLICY_ONLY_SNAPSHOTS,
         enabled_policy_relationships=ENABLED_POLICY_RELATIONSHIPS,
@@ -55,4 +55,4 @@ def run() -> None:
 
 if __name__ == "__main__":
     run()
-    # open_output_visualization("harbor.html")
+    # .venv/bin/python -m experiments.temporal_state.run_contradictions_example
