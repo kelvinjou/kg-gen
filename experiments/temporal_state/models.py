@@ -122,10 +122,11 @@ class TemporalFact(BaseModel):
 
 
 class EvidenceResolution(BaseModel):
-    """Policy-guided handling details that do not alter an epistemic decision."""
+    """Policy-guided selection applied after an epistemic decision."""
 
     model_config = ConfigDict(frozen=True)
 
+    selected_evidence: Literal["old", "new"]
     resolution: str = Field(min_length=1)
 
 
@@ -175,6 +176,13 @@ class ReconciliationDecision(BaseModel):
             raise ValueError(
                 "policy_name, policy_version, policy_applied_for, and "
                 "policy_resolution must be set together"
+            )
+        if (
+            self.policy_applied_for is not None
+            and self.policy_applied_for != self.relationship
+        ):
+            raise ValueError(
+                "policy_applied_for must match the immutable epistemic relationship"
             )
         return self
 

@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
+import colorsys
 import hashlib
 import json
 from collections import Counter, defaultdict, deque
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Iterable
-import colorsys
 import webbrowser
 
 from kg_gen.models import Graph
 
-from experiments.temporal_state.ledger import ENABLED_POLICY_RELATIONSHIPS
+from experiments.temporal_state.ledger import ResolutionPolicy
 from experiments.temporal_state.models import (
     Observation,
     ReconciliationDecision,
@@ -273,6 +274,9 @@ def _build_view_model(
 
 
 HTML_TEMPLATE = (Path(__file__).parent / "template.html").read_text(encoding="utf-8")
+COMPARISON_DASHBOARD_TEMPLATE = (
+    Path(__file__).parent / "comparison_dashboard.html"
+).read_text(encoding="utf-8")
 OUTPUT_DIR = (Path(__file__).resolve().parent.parent / "output").resolve()
 
 
@@ -309,7 +313,7 @@ def _write_visualization(
     html = HTML_TEMPLATE.replace(
         "<!--DATA-->",
         serialized_payload,
-    )
+    ).replace("<!--DATA_CONFIG-->", "{}")
 
     # Make sidebar visible for standalone mode by removing display: none.
     html = html.replace(
@@ -324,6 +328,75 @@ def _write_visualization(
     if open_in_browser:
         webbrowser.open(destination.as_uri())
 
+    return destination
+
+
+def write_snapshot_viewer(
+    datasets: Mapping[str, str | Path],
+    output_path: str | Path,
+    *,
+    default_version: str | None = None,
+    open_in_browser: bool = False,
+) -> Path:
+    """Write one HTML viewer that loads a selected versioned JSON dataset."""
+    if not datasets:
+        raise ValueError("at least one snapshot dataset is required")
+
+    destination = Path(output_path).resolve()
+    if destination.suffix.lower() != ".html":
+        raise ValueError("snapshot viewer output must end in .html")
+
+    versions = tuple(datasets)
+    selected_default = default_version or versions[0]
+    if selected_default not in datasets:
+        raise ValueError(f"unknown default dataset version: {selected_default}")
+
+    dataset_entries = []
+    for version, data_path in datasets.items():
+        resolved_data_path = Path(data_path).resolve()
+        if resolved_data_path.suffix.lower() != ".json":
+            raise ValueError("snapshot dataset paths must end in .json")
+        if resolved_data_path.parent != destination.parent:
+            raise ValueError("snapshot datasets must be beside the HTML viewer")
+        dataset_entries.append(
+            {"version": version, "path": resolved_data_path.name}
+        )
+
+    data_config = {
+        "datasets": dataset_entries,
+        "default_version": selected_default,
+    }
+    serialized_config = json.dumps(
+        data_config, ensure_ascii=False, indent=2
+    ).replace("</", "<\\/")
+    html = HTML_TEMPLATE.replace("<!--DATA-->", "{}").replace(
+        "<!--DATA_CONFIG-->", serialized_config
+    )
+    html = html.replace(
+        "display: none; /* Hidden by default - controlled by main app */",
+        "display: block; /* Visible in standalone mode */",
+    )
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(html, encoding="utf-8")
+    if open_in_browser:
+        webbrowser.open(destination.as_uri())
+    return destination
+
+
+def write_policy_comparison_dashboard(
+    output_path: str | Path,
+    *,
+    open_in_browser: bool = False,
+) -> Path:
+    """Write a dashboard for comparing up to four snapshot JSON datasets."""
+    destination = Path(output_path).resolve()
+    if destination.suffix.lower() != ".html":
+        raise ValueError("comparison dashboard output must end in .html")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(COMPARISON_DASHBOARD_TEMPLATE, encoding="utf-8")
+    if open_in_browser:
+        webbrowser.open(destination.as_uri())
     return destination
 
 
@@ -354,7 +427,7 @@ def visualize(
     )
 
 
-def visualize_snapshots(
+def _build_snapshot_payload(
     snapshots: Iterable[
         tuple[str, Graph]
         | tuple[str, Graph, Iterable[ReconciliationDecision]]
@@ -365,40 +438,31 @@ def visualize_snapshots(
             Observation | Iterable[Observation],
         ]
     ],
-    output_path: str | None = None,
     *,
-    open_in_browser: bool = False,
     policy_only_snapshots: bool = False,
-    enabled_policy_relationships: Iterable[Relationship] | None = None,
-) -> Path:
-    """Render multiple labeled graph snapshots into one timeline visualization.
+    policy: ResolutionPolicy | None = None,
+) -> dict[str, Any]:
+    """Build the serializable timeline payload for graph snapshots.
 
     Args:
         snapshots: Ordered ``(label, graph)``, ``(label, graph, decisions)``, or
             ``(label, graph, decisions, observations)`` tuples. The fourth value
             accepts one raw Observation or an iterable of them. Labels are displayed
             beside the timeline slider and should identify each time interval.
-        output_path: Optional path where the HTML document should be stored.
-        open_in_browser: When True, open the generated file in the default browser.
         policy_only_snapshots: Initial state of the HTML policy-event filter.
             All snapshots are still computed and embedded when this is True.
-        enabled_policy_relationships: Relationships that qualify a snapshot for
-            the policy-event filter. Defaults to ``ENABLED_POLICY_RELATIONSHIPS``.
+        policy: Resolution policy whose instruction keys qualify a snapshot for
+            the policy-event filter. Empty instructions default to all relationships.
 
     Returns:
-        Path to the generated HTML file.
+        JSON-serializable visualization data.
     """
     snapshot_list = list(snapshots)
     if not snapshot_list:
         raise ValueError("Cannot visualize an empty snapshot sequence")
-    enabled_relationships = tuple(
-        dict.fromkeys(
-            ENABLED_POLICY_RELATIONSHIPS
-            if enabled_policy_relationships is None
-            else enabled_policy_relationships
-        )
-    )
+    enabled_relationships = policy.policy_relationships if policy is not None else ()
     enabled_relationship_set = set(enabled_relationships)
+    inferred_policy_relationships: list[Relationship] = []
 
     rendered_snapshots = []
     evidence_timeline = []
@@ -455,6 +519,9 @@ def visualize_snapshots(
                 if decision.policy_applied_for is not None
             }
         )
+        for relationship in policy_resolutions:
+            if relationship not in inferred_policy_relationships:
+                inferred_policy_relationships.append(relationship)
         manual_overrides = []
         for decision in decision_list:
             if decision.relationship != "contradiction":
@@ -466,6 +533,15 @@ def visualize_snapshots(
             if any(index is None for index in option_indices):
                 continue
 
+            conflicting_relations = {
+                (
+                    evidence_timeline[evidence_index]["observation"]["subject"],
+                    evidence_timeline[evidence_index]["observation"]["relation"],
+                    evidence_timeline[evidence_index]["observation"]["object"],
+                )
+                for evidence_index in option_indices
+                if evidence_index is not None
+            }
             options = []
             for evidence_index in option_indices:
                 if evidence_index is None:
@@ -476,12 +552,20 @@ def visualize_snapshots(
                     observation["relation"],
                     observation["object"],
                 )
+                override_relations = (
+                    set(graph.relations) - conflicting_relations
+                ) | {relation}
                 override_graph = graph.model_copy(
                     update={
-                        "entities": set(graph.entities)
-                        | {observation["subject"], observation["object"]},
-                        "edges": set(graph.edges) | {observation["relation"]},
-                        "relations": set(graph.relations) | {relation},
+                        "entities": {
+                            entity
+                            for subject, _, object_ in override_relations
+                            for entity in (subject, object_)
+                        },
+                        "edges": {
+                            predicate for _, predicate, _ in override_relations
+                        },
+                        "relations": override_relations,
                     }
                 )
                 options.append(
@@ -514,6 +598,8 @@ def visualize_snapshots(
                 "epistemic_relationships": epistemic_relationships,
                 "policy_relevant": bool(
                     set(epistemic_relationships) & enabled_relationship_set
+                    if policy is not None
+                    else policy_resolutions
                 ),
                 "policy_resolutions": policy_resolutions,
                 "evidence_indices": evidence_indices,
@@ -528,15 +614,80 @@ def visualize_snapshots(
         )
         previous_relations = current_relations
 
-    return _write_visualization(
-        {
-            "snapshots": rendered_snapshots,
-            "evidence_timeline": evidence_timeline,
-            "timeline_config": {
-                "policy_only_snapshots": policy_only_snapshots,
-                "enabled_policy_relationships": list(enabled_relationships),
-            },
+    return {
+        "policy_definition": (
+            policy.model_dump(mode="json") if policy is not None else None
+        ),
+        "snapshots": rendered_snapshots,
+        "evidence_timeline": evidence_timeline,
+        "timeline_config": {
+            "policy_only_snapshots": policy_only_snapshots,
+            "enabled_policy_relationships": list(
+                enabled_relationships
+                if policy is not None
+                else inferred_policy_relationships
+            ),
         },
+    }
+
+
+def write_snapshot_data(
+    snapshots: Iterable[
+        tuple[str, Graph]
+        | tuple[str, Graph, Iterable[ReconciliationDecision]]
+        | tuple[
+            str,
+            Graph,
+            Iterable[ReconciliationDecision],
+            Observation | Iterable[Observation],
+        ]
+    ],
+    output_path: str | Path,
+    *,
+    policy_only_snapshots: bool = False,
+    policy: ResolutionPolicy | None = None,
+) -> Path:
+    """Write graph snapshots and raw reconciliation output to a JSON dataset."""
+    destination = Path(output_path).resolve()
+    if destination.suffix.lower() != ".json":
+        raise ValueError("snapshot data output must end in .json")
+    payload = _build_snapshot_payload(
+        snapshots,
+        policy_only_snapshots=policy_only_snapshots,
+        policy=policy,
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return destination
+
+
+def visualize_snapshots(
+    snapshots: Iterable[
+        tuple[str, Graph]
+        | tuple[str, Graph, Iterable[ReconciliationDecision]]
+        | tuple[
+            str,
+            Graph,
+            Iterable[ReconciliationDecision],
+            Observation | Iterable[Observation],
+        ]
+    ],
+    output_path: str | None = None,
+    *,
+    open_in_browser: bool = False,
+    policy_only_snapshots: bool = False,
+    policy: ResolutionPolicy | None = None,
+) -> Path:
+    """Render graph snapshots as one self-contained HTML visualization."""
+    payload = _build_snapshot_payload(
+        snapshots,
+        policy_only_snapshots=policy_only_snapshots,
+        policy=policy,
+    )
+    return _write_visualization(
+        payload,
         output_path,
         open_in_browser=open_in_browser,
     )

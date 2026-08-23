@@ -20,11 +20,7 @@ from experiments.temporal_state.models import (
     utc_now,
 )
 
-DEFAULT_POLICY_PATH = Path(__file__).with_name("policy.json")
-_EXPECTED_RELATIONSHIPS = frozenset(get_args(Relationship))
-# A relationship in this list may trigger evidence handling after classification.
-# It never changes the epistemic relationship chosen by the first LLM call.
-ENABLED_POLICY_RELATIONSHIPS: list[Relationship] = ["contradiction"]
+_RELATIONSHIPS: tuple[Relationship, ...] = get_args(Relationship)
 
 
 class RelationshipResolutionInstruction(BaseModel):
@@ -43,17 +39,55 @@ class ResolutionPolicy(BaseModel):
     name: str = Field(min_length=1)
     version: str = Field(min_length=1)
     domain: str = Field(min_length=1)
-    instructions: dict[Relationship, RelationshipResolutionInstruction] = Field(
-        min_length=1
+    instructions: dict[Relationship, RelationshipResolutionInstruction]
+
+    @property
+    def policy_relationships(self) -> tuple[Relationship, ...]:
+        """Return explicit instruction keys, or every relationship by default."""
+        return tuple(self.instructions) or _RELATIONSHIPS
+
+
+def load_resolution_policies(
+    policy_path: str | Path,
+) -> tuple[ResolutionPolicy, ...]:
+    """Load one policy or a bundled policy list and require unique versions."""
+    path = Path(policy_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict) and "policies" in payload:
+        if set(payload) != {"policies"}:
+            raise ValueError("a policy bundle may only contain the policies field")
+        policy_payloads = payload["policies"]
+        if not isinstance(policy_payloads, list) or not policy_payloads:
+            raise ValueError("policies must be a nonempty list")
+    else:
+        policy_payloads = [payload]
+
+    policies = tuple(
+        ResolutionPolicy.model_validate(policy_payload)
+        for policy_payload in policy_payloads
     )
+    versions = [policy.version for policy in policies]
+    if len(set(versions)) != len(versions):
+        raise ValueError("policy versions must be unique within a policy bundle")
+    return policies
 
 
 def load_resolution_policy(
-    policy_path: str | Path = DEFAULT_POLICY_PATH,
+    policy_path: str | Path,
+    *,
+    policy_version: str | None = None,
 ) -> ResolutionPolicy:
-    """Load domain guidance that is applied after epistemic classification."""
-    path = Path(policy_path)
-    return ResolutionPolicy.model_validate_json(path.read_text(encoding="utf-8"))
+    """Load one policy, selecting its version when the file contains a bundle."""
+    policies = load_resolution_policies(policy_path)
+    if policy_version is None:
+        if len(policies) != 1:
+            raise ValueError("policy_version is required for a bundled policy file")
+        return policies[0]
+
+    matching = [policy for policy in policies if policy.version == policy_version]
+    if not matching:
+        raise ValueError(f"unknown policy version: {policy_version}")
+    return matching[0]
 
 
 class RelationshipClassifier(Protocol):
@@ -108,33 +142,21 @@ For every other label, transition_time must be null.
         client: Any | None = None,
         use_policy: bool = False,
         policy_path: str | Path | None = None,
-        policy_relationships: Iterable[Relationship] | None = None,
+        policy_version: str | None = None,
     ) -> None:
         """Configure classification and optional post-classification resolution."""
         load_dotenv()
         self._use_policy = use_policy
+        if use_policy and policy_path is None:
+            raise ValueError("policy_path is required when use_policy is enabled")
         self._policy = (
-            load_resolution_policy(policy_path or DEFAULT_POLICY_PATH)
-            if use_policy
+            load_resolution_policy(policy_path, policy_version=policy_version)
+            if use_policy and policy_path
             else None
         )
-        configured_relationships = (
-            ENABLED_POLICY_RELATIONSHIPS
-            if policy_relationships is None
-            else list(policy_relationships)
+        self._policy_relationships = (
+            self._policy.policy_relationships if self._policy is not None else ()
         )
-        unknown_relationships = set(configured_relationships) - _EXPECTED_RELATIONSHIPS
-        if unknown_relationships:
-            unknown = ", ".join(sorted(unknown_relationships))
-            raise ValueError(f"unknown policy relationships: {unknown}")
-        if self._policy is not None:
-            missing_instructions = set(configured_relationships) - set(
-                self._policy.instructions
-            )
-            if missing_instructions:
-                missing = ", ".join(sorted(missing_instructions))
-                raise ValueError(f"policy has no instructions for: {missing}")
-        self._policy_relationships = tuple(dict.fromkeys(configured_relationships))
         if client is None:
             client = self._create_lmstudio_client()
         self._client = client
@@ -160,14 +182,15 @@ For every other label, transition_time must be null.
         if self._policy is None:
             raise RuntimeError("cannot build policy instructions without a policy")
 
-        selected_policy = {
+        selected_policy: dict[str, Any] = {
             "name": self._policy.name,
             "version": self._policy.version,
             "domain": self._policy.domain,
-            "instruction": self._policy.instructions[relationship].model_dump(
-                mode="json"
-            ),
         }
+        instruction = self._policy.instructions.get(relationship)
+        selected_policy["instruction"] = (
+            instruction.model_dump(mode="json") if instruction is not None else {}
+        )
         policy_json = json.dumps(selected_policy, indent=2)
         return (
             "You resolve nuances between two pieces of evidence after a separate "
@@ -175,10 +198,15 @@ For every other label, transition_time must be null.
             + f"The immutable epistemic relationship is {relationship}. Do not "
             + "classify, reclassify, confirm, reject, or return an epistemic "
             + "relationship. Do not alter the classifier's transition time or "
-            + "rationale. Apply the expert-authored instructions below only to resolve "
-            + "nuances between the evidence. Return one resolution narrative in the "
-            + "expert's own domain-appropriate structure; do not impose a generic "
-            + "checklist, levels, or categories.\n"
+            + "rationale. Apply the relationship-specific instruction below when one "
+            + "is provided; otherwise use the default evidence-resolution behavior. "
+            + "Select exactly one of the supplied "
+            + "evidence records: selected_evidence='old' selects old_fact and "
+            + "selected_evidence='new' selects new_fact. The selected record becomes "
+            + "the active operational assertion; the unselected record remains "
+            + "disputed with its provenance intact. Return the selection plus one "
+            + "resolution narrative in the expert's own domain-appropriate structure; "
+            + "do not impose a generic checklist, levels, or categories.\n"
             + policy_json
         )
 
@@ -260,6 +288,11 @@ For every other label, transition_time must be null.
             and classification.relationship in self._policy_relationships
         ):
             policy_applied_for = classification.relationship
+            print(
+                "\tsecond-pass policy resolution: "
+                f"{old_fact.fact_id} -> {new_fact.fact_id} "
+                f"({policy_applied_for}, policy={self._policy.name})"
+            )
             policy_payload = {
                 **payload,
                 "epistemic_decision": {
@@ -450,14 +483,41 @@ class TemporalLedger:
         facts: dict[str, TemporalFact],
         decisions: list[ReconciliationDecision],
     ) -> None:
-        """Mark unresolved contradictory assertions as disputed."""
+        """Apply policy selections and retain unselected contradictions as disputed."""
+        selected_fact_ids: set[str] = set()
+        disputed_fact_ids: set[str] = set()
         for decision in decisions:
             if decision.relationship != "contradiction":
                 continue
-            for fact_id in (decision.old_fact_id, decision.new_fact_id):
-                fact = facts[fact_id]
-                if fact.status != "retracted":
-                    facts[fact_id] = fact.model_copy(update={"status": "disputed"})
+            resolution = decision.policy_resolution
+            if resolution is None:
+                disputed_fact_ids.update(
+                    (decision.old_fact_id, decision.new_fact_id)
+                )
+                continue
+
+            selected_fact_id = (
+                decision.old_fact_id
+                if resolution.selected_evidence == "old"
+                else decision.new_fact_id
+            )
+            unselected_fact_id = (
+                decision.new_fact_id
+                if resolution.selected_evidence == "old"
+                else decision.old_fact_id
+            )
+            selected_fact_ids.add(selected_fact_id)
+            disputed_fact_ids.add(unselected_fact_id)
+
+        for fact_id in disputed_fact_ids:
+            fact = facts[fact_id]
+            if fact.status != "retracted":
+                facts[fact_id] = fact.model_copy(update={"status": "disputed"})
+
+        for fact_id in selected_fact_ids - disputed_fact_ids:
+            fact = facts[fact_id]
+            if fact.status != "retracted":
+                facts[fact_id] = fact.model_copy(update={"status": "active"})
 
     @classmethod
     def _apply_transitions(

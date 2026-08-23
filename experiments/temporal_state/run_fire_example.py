@@ -5,14 +5,15 @@ from __future__ import annotations
 from experiments.temporal_state.annotate import TemporalAnnotator
 from experiments.temporal_state.cases.noisy_harbor import noisy_harbor_observations
 from experiments.temporal_state.ledger import (
-    ENABLED_POLICY_RELATIONSHIPS,
     OpenAIRelationshipClassifier,
     TemporalLedger,
 )
 from experiments.temporal_state.project import project_graph
 from experiments.temporal_state.visualizer.visualize_kg import visualize_snapshots
 
-USE_POLICY = True
+# This scenario has no colocated domain policy. Use the dedicated contradiction
+# runner when testing policy-driven resolution.
+USE_POLICY = False
 POLICY_ONLY_SNAPSHOTS = False
 
 
@@ -22,7 +23,6 @@ def run() -> None:
     ledger = TemporalLedger(
         OpenAIRelationshipClassifier(
             use_policy=USE_POLICY,
-            policy_relationships=ENABLED_POLICY_RELATIONSHIPS,
         )
     )
     snapshots = []
@@ -49,7 +49,6 @@ def run() -> None:
         "experiments/temporal_state/output/harbor.html",
         open_in_browser=True,
         policy_only_snapshots=POLICY_ONLY_SNAPSHOTS,
-        enabled_policy_relationships=ENABLED_POLICY_RELATIONSHIPS,
     )
 
 

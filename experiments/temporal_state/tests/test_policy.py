@@ -10,13 +10,18 @@ from unittest.mock import Mock
 
 import pytest
 
+from experiments.temporal_state.cases.nonconsecutive_contradictions import POLICY_PATH
 from experiments.temporal_state.ledger import (
-    DEFAULT_POLICY_PATH,
-    ENABLED_POLICY_RELATIONSHIPS,
     OpenAIRelationshipClassifier,
+    TemporalLedger,
     load_resolution_policy,
 )
-from experiments.temporal_state.models import EvidenceResolution, TemporalFact
+from experiments.temporal_state.models import (
+    EvidenceResolution,
+    ReconciliationDecision,
+    TemporalFact,
+)
+from experiments.temporal_state.project import project_graph
 
 UTC = timezone.utc
 
@@ -35,7 +40,11 @@ def _fact(fact_id: str, object_: str, minute: int) -> TemporalFact:
     )
 
 
-def _client_with_result(relationship: str = "contradiction") -> Mock:
+def _client_with_result(
+    relationship: str = "contradiction",
+    *,
+    include_resolution: bool | None = None,
+) -> Mock:
     """Return a mock client with separate classification and resolution results."""
     client = Mock()
     classification = SimpleNamespace(
@@ -52,12 +61,15 @@ def _client_with_result(relationship: str = "contradiction") -> Mock:
             choices=[SimpleNamespace(message=SimpleNamespace(parsed=classification))]
         )
     ]
-    if relationship == "contradiction":
+    if include_resolution is None:
+        include_resolution = relationship == "contradiction"
+    if include_resolution:
         resolution = EvidenceResolution(
+            selected_evidence="new",
             resolution=(
-                "Both reports are direct but neither is independently corroborated. "
-                "Preserve both and use a precautionary envelope pending a geolocated "
-                "field observation."
+                "The newer field report has the better effective-time fit. Preserve "
+                "both records, use the new report provisionally, and request a "
+                "geolocated field observation."
             ),
         )
         responses.append(
@@ -71,16 +83,19 @@ def _client_with_result(relationship: str = "contradiction") -> Mock:
 
 def test_policy_contains_resolution_guidance_not_classification_rules() -> None:
     """Keep policy.json downstream from the epistemic classification contract."""
-    policy = load_resolution_policy()
+    policy = load_resolution_policy(POLICY_PATH, policy_version="5.1.0")
 
-    assert DEFAULT_POLICY_PATH.name == "policy.json"
+    assert POLICY_PATH.name == "policy.json"
+    assert POLICY_PATH.parent.name == "nonconsecutive_contradictions"
+    assert policy.version == "5.1.0"
     assert policy.domain == "Emergency and disaster mitigation"
     assert set(policy.instructions) == {"contradiction"}
-    assert "reversible response posture" in (
+    assert "provisional Common Operating Picture entry" in (
         policy.instructions["contradiction"].resolution
     )
     serialized_policy = policy.model_dump_json()
-    assert "proportionate, reversible response posture" in serialized_policy
+    assert "time-bounded verification task" in serialized_policy
+    assert "least-regret reversible action" in serialized_policy
     for classification_key in (
         "epistemic_vocabulary",
         '"definition"',
@@ -130,6 +145,7 @@ def test_domain_expert_policy_is_plug_and_play(tmp_path: Path) -> None:
         use_policy=True,
         policy_path=policy_path,
     )
+    assert classifier.policy_relationships == ("contradiction", "correction")
 
     decision = classifier.classify(
         _fact("report-a", "Zone A", 3),
@@ -145,21 +161,89 @@ def test_domain_expert_policy_is_plug_and_play(tmp_path: Path) -> None:
     assert decision.policy_name == "public_health_evidence_resolution"
 
 
-def test_contradiction_triggers_resolution_without_reclassification() -> None:
+def test_empty_instructions_apply_default_policy_to_every_relationship(
+    tmp_path: Path,
+) -> None:
+    """Treat an empty instruction map as the generic policy for all labels."""
+    policy_path = tmp_path / "default-policy.json"
+    policy_path.write_text(
+        json.dumps(
+            {
+                "name": "default_evidence_resolution",
+                "version": "1.0.0",
+                "domain": "General",
+                "instructions": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    client = _client_with_result("uncertain", include_resolution=True)
+    classifier = OpenAIRelationshipClassifier(
+        model="test-model",
+        client=client,
+        use_policy=True,
+        policy_path=policy_path,
+    )
+
+    decision = classifier.classify(
+        _fact("report-a", "Zone A", 3),
+        _fact("report-b", "Zone B", 8),
+    )
+
+    assert classifier.policy_relationships == (
+        "duplicate",
+        "coexists",
+        "state_transition",
+        "correction",
+        "contradiction",
+        "uncertain",
+    )
+    assert client.chat.completions.parse.call_count == 2
+    policy_prompt = client.chat.completions.parse.call_args_list[1].kwargs["messages"][
+        0
+    ]["content"]
+    assert '"instruction": {}' in policy_prompt
+    assert decision.policy_applied_for == "uncertain"
+    assert decision.policy_name == "default_evidence_resolution"
+
+
+def test_enabled_policy_requires_an_explicit_scenario_path() -> None:
+    """Prevent an unrelated scenario from silently borrowing another case's policy."""
+    with pytest.raises(
+        ValueError,
+        match="policy_path is required when use_policy is enabled",
+    ):
+        OpenAIRelationshipClassifier(
+            model="test-model",
+            client=_client_with_result(),
+            use_policy=True,
+        )
+
+
+def test_contradiction_triggers_resolution_without_reclassification(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Keep the first LLM decision immutable while resolving evidence nuance."""
     client = _client_with_result()
     classifier = OpenAIRelationshipClassifier(
         model="test-model",
         client=client,
         use_policy=True,
+        policy_path=POLICY_PATH,
+        policy_version="5.1.0",
     )
 
     decision = classifier.classify(
         _fact("pier-7", "Pier 7", 3),
         _fact("pier-9", "Pier 9", 8),
     )
+    terminal_output = capsys.readouterr().out
 
-    assert ENABLED_POLICY_RELATIONSHIPS == ["contradiction"]
+    assert classifier.policy_relationships == ("contradiction",)
+    assert terminal_output == (
+        "\tsecond-pass policy resolution: pier-7 -> pier-9 "
+        "(contradiction, policy=disaster_mitigation_evidence_resolution)\n"
+    )
     assert client.chat.completions.parse.call_count == 2
     initial_request, policy_request = (
         call.kwargs for call in client.chat.completions.parse.call_args_list
@@ -170,30 +254,83 @@ def test_contradiction_triggers_resolution_without_reclassification() -> None:
     user_payload = json.loads(policy_request["messages"][1]["content"])
     assert "immutable epistemic relationship is contradiction" in system_prompt
     assert "Do not classify, reclassify" in system_prompt
+    assert "selected_evidence='old'" in system_prompt
+    assert "selected_evidence='new'" in system_prompt
     assert "Use exactly one relationship" not in system_prompt
     assert "duplicate:" not in system_prompt
     assert '"definition"' not in system_prompt
     assert '"choose_when"' not in system_prompt
     assert '"instruction"' in system_prompt
-    assert "reversible response posture" in system_prompt
+    assert "provisional Common Operating Picture entry" in system_prompt
     assert "expert's own domain-appropriate structure" in system_prompt
     assert user_payload["epistemic_decision"]["relationship"] == "contradiction"
     assert user_payload["resolution_policy"] == {
         "applied_for": "contradiction",
         "name": "disaster_mitigation_evidence_resolution",
-        "version": "4.0.0",
+        "version": "5.1.0",
     }
     assert decision.relationship == "contradiction"
     assert decision.rationale == (
         "The assertions conflict for the same effective interval."
     )
     assert decision.policy_name == "disaster_mitigation_evidence_resolution"
-    assert decision.policy_version == "4.0.0"
+    assert decision.policy_version == "5.1.0"
     assert decision.policy_applied_for == "contradiction"
     assert decision.policy_resolution is not None
-    assert "Preserve both and use a precautionary envelope" in (
+    assert decision.policy_resolution.selected_evidence == "new"
+    assert "use the new report provisionally" in (
         decision.policy_resolution.resolution
     )
+
+
+def test_policy_selection_is_applied_to_the_ledger_projection() -> None:
+    """Activate the evidence selected by policy while retaining its disputed peer."""
+    classifier = OpenAIRelationshipClassifier(
+        model="test-model",
+        client=_client_with_result(),
+        use_policy=True,
+        policy_path=POLICY_PATH,
+        policy_version="5.1.0",
+    )
+    ledger = TemporalLedger(classifier)
+    ledger.ingest(_fact("pier-7", "Pier 7", 3))
+    ledger.ingest(_fact("pier-9", "Pier 9", 8))
+
+    known_at = datetime(2026, 9, 4, 9, 10, tzinfo=UTC)
+    effective = {
+        fact.fact_id: fact for fact in ledger.effective_facts(known_at=known_at)
+    }
+    graph = project_graph(
+        ledger,
+        valid_at=datetime(2026, 9, 4, 9, 0, tzinfo=UTC),
+        known_at=known_at,
+    )
+
+    assert effective["pier-7"].status == "disputed"
+    assert effective["pier-9"].status == "active"
+    assert graph.relations == {
+        ("Bayview Harbor Spill", "reported_source_at", "Pier 9")
+    }
+
+
+def test_policy_metadata_cannot_target_a_different_relationship() -> None:
+    """Prevent a policy result from changing which epistemic decision it handles."""
+    with pytest.raises(
+        ValueError,
+        match="policy_applied_for must match the immutable epistemic relationship",
+    ):
+        ReconciliationDecision(
+            old_fact_id="pier-7",
+            new_fact_id="pier-9",
+            relationship="contradiction",
+            policy_name="invalid-policy-application",
+            policy_version="1.0.0",
+            policy_applied_for="correction",
+            policy_resolution=EvidenceResolution(
+                selected_evidence="new",
+                resolution="Select the newer report.",
+            ),
+        )
 
 
 @pytest.mark.parametrize(
@@ -207,6 +344,8 @@ def test_non_enabled_relationships_do_not_apply_policy(relationship: str) -> Non
         model="test-model",
         client=client,
         use_policy=True,
+        policy_path=POLICY_PATH,
+        policy_version="5.1.0",
     )
 
     decision = classifier.classify(

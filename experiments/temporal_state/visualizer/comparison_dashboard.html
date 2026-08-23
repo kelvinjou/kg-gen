@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Policy KG Evolution Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+        :root { color-scheme: light; }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-width: 320px;
+            background: #f8fafc;
+            color: #0f172a;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        button, input { font: inherit; }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 360px minmax(0, 1fr);
+            height: 100vh;
+        }
+
+        .sidebar {
+            overflow-y: auto;
+            padding: 24px 24px 18px;
+            border-right: 1px solid #e2e8f0;
+            background: #ffffff;
+        }
+
+        h1, h2, p { margin: 0; }
+        .sidebar h1 { margin-bottom: 8px; font-size: 1.5rem; font-weight: 600; }
+        .subtitle { color: #475569; font-size: 0.95rem; line-height: 1.5; }
+
+        .section { margin-top: 24px; }
+        .section h2 {
+            margin-bottom: 12px;
+            color: #1e293b;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .file-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+        .file-button, .clear-button {
+            padding: 9px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-align: center;
+        }
+        .file-button { border: 1px solid #2563eb; background: #2563eb; color: #ffffff; }
+        .clear-button { border: 1px solid #cbd5e1; background: #ffffff; color: #334155; }
+        .file-button:hover { background: #1d4ed8; }
+        .clear-button:hover { background: #f8fafc; }
+        .file-input { display: none; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .stat-card { padding: 12px; border-radius: 12px; background: #f1f5f9; }
+        .stat-value { margin-bottom: 4px; font-size: 1.5rem; font-weight: 600; }
+        .stat-label { color: #64748b; font-size: 0.75rem; }
+        .stat-value.divergent { color: #be123c; }
+
+        .list { display: flex; flex-direction: column; gap: 8px; }
+        .list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid var(--item-color, #cbd5e1);
+            border-radius: 10px;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 0.82rem;
+        }
+        .list-item strong { font-weight: 600; overflow-wrap: anywhere; }
+        .list-meta { color: #64748b; font-size: 0.72rem; white-space: nowrap; }
+
+        .legend-list { display: flex; flex-direction: column; gap: 8px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; color: #475569; font-size: 0.8rem; }
+        .swatch { width: 22px; height: 3px; background: #94a3b8; }
+        .swatch.divergent { background: #be123c; }
+
+        .error {
+            min-height: 22px;
+            margin-top: 10px;
+            color: #be123c;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .main { min-width: 0; height: 100vh; padding: 16px 20px; overflow-y: auto; }
+        .comparison-stage { position: relative; min-height: calc(100vh - 32px); padding-bottom: 92px; }
+
+        .empty {
+            display: grid;
+            min-height: calc(100vh - 32px);
+            place-items: center;
+            padding: 32px;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            background: #ffffff;
+            color: #64748b;
+            text-align: center;
+        }
+        .empty strong { color: #334155; font-size: 1rem; font-weight: 600; }
+        .empty .subtitle { margin-top: 7px; font-size: 0.85rem; }
+        .empty[hidden], .snapshot-controls[hidden] { display: none; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .kg-panel {
+            min-width: 0;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            border-top: 4px solid var(--series-color);
+            border-radius: 16px;
+            background: #ffffff;
+        }
+
+        .panel-head { padding: 14px; border-bottom: 1px solid #e2e8f0; }
+        .panel-title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+        .panel-title { font-size: 1rem; font-weight: 600; overflow-wrap: anywhere; }
+        .snapshot-position { color: #64748b; font-size: 0.75rem; white-space: nowrap; }
+        .policy-name { margin-top: 4px; color: #475569; font-size: 0.78rem; }
+        .strategy { margin-top: 10px; color: #475569; font-size: 0.75rem; line-height: 1.4; }
+        .strategy summary { cursor: pointer; color: #1d4ed8; font-weight: 600; }
+        .strategy p { margin-top: 7px; padding: 9px; border-radius: 6px; background: #eff6ff; }
+
+        .graph-wrap { padding: 8px; background: #ffffff; }
+        .graph { display: block; width: 100%; min-height: 260px; }
+        .edge { stroke-width: 2.5; opacity: 0.88; }
+        .edge.consensus { stroke: #94a3b8; opacity: 0.55; }
+        .edge.divergent { stroke: var(--series-color); }
+        .edge-label { fill: #64748b; font-size: 10px; text-anchor: middle; paint-order: stroke; stroke: #ffffff; stroke-width: 4px; }
+        .node { fill: #ffffff; stroke: var(--series-color); stroke-width: 2; }
+        .node-label { fill: #0f172a; font-size: 10px; text-anchor: middle; font-weight: 600; }
+        .empty-graph { fill: #64748b; text-anchor: middle; font-size: 14px; }
+
+        .panel-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px 14px 14px; border-top: 1px solid #e2e8f0; }
+        .detail-block { padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
+        .detail-block h2 { font-size: 0.76rem; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; }
+        .detail-block ul { margin: 8px 0 0; padding-left: 18px; font-size: 0.8rem; line-height: 1.45; }
+        .detail-block li + li { margin-top: 4px; }
+        .no-detail { margin-top: 8px; color: #64748b; font-size: 0.78rem; }
+        .decision { margin-top: 8px; color: #475569; font-size: 0.78rem; line-height: 1.45; }
+        .decision strong {
+            display: inline-flex;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: #ffe4e6;
+            color: #be123c;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .snapshot-controls {
+            position: sticky;
+            z-index: 12;
+            bottom: 4px;
+            display: grid;
+            grid-template-columns: auto minmax(120px, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            width: min(760px, calc(100% - 40px));
+            margin: 18px auto 0;
+            padding: 12px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+            backdrop-filter: blur(8px);
+        }
+
+        .snapshot-button {
+            width: 34px;
+            height: 34px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            cursor: pointer;
+        }
+        .snapshot-button:disabled { cursor: not-allowed; opacity: 0.4; }
+        .snapshot-slider-group { min-width: 0; }
+        #timelineSlider { display: block; width: 100%; margin: 0; accent-color: #2563eb; cursor: pointer; }
+        .snapshot-caption { display: flex; justify-content: space-between; gap: 12px; margin-top: 4px; color: #475569; font-size: 0.78rem; }
+        .snapshot-caption strong { color: #334155; font-weight: 600; }
+
+        @media (max-width: 900px) {
+            .layout { grid-template-columns: 1fr; height: auto; }
+            .sidebar { overflow: visible; border-right: 0; border-bottom: 1px solid #e2e8f0; }
+            .main { height: auto; overflow: visible; }
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 560px) {
+            .sidebar { padding: 18px; }
+            .main { padding: 12px; }
+            .panel-foot { grid-template-columns: 1fr; }
+            .snapshot-controls { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <h1>Policy KG Explorer</h1>
+            <p class="subtitle">Compare how up to four policy-governed knowledge graphs diverge over a shared timeline.</p>
+
+            <section class="section">
+                <h2>Datasets</h2>
+                <div class="file-actions">
+                    <label class="file-button">
+                        Load JSON outputs
+                        <input class="file-input" id="fileInput" type="file" accept="application/json,.json" multiple />
+                    </label>
+                    <button class="clear-button" id="clearButton" type="button">Clear</button>
+                </div>
+                <div class="error" id="errorMessage" role="alert"></div>
+                <div class="list" id="datasetList"></div>
+            </section>
+
+            <section class="section">
+                <h2>Comparison</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="loadedCount">0</div>
+                        <div class="stat-label">Loaded KGs</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="timelineCount">0</div>
+                        <div class="stat-label">Aligned times</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value divergent" id="divergentCount">0</div>
+                        <div class="stat-label">Divergent relations</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="consensusCount">0</div>
+                        <div class="stat-label">Consensus relations</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="legend" hidden>
+                <h2>Graph Legend</h2>
+                <div class="legend-list">
+                    <div class="legend-item"><i class="swatch"></i>Shared by every loaded KG</div>
+                    <div class="legend-item"><i class="swatch divergent"></i>Policy-dependent divergence</div>
+                </div>
+            </section>
+        </aside>
+
+        <main class="main">
+            <section class="comparison-stage">
+                <section class="empty" id="emptyState">
+                    <div>
+                        <strong>Load 2–4 versioned snapshot JSON files</strong>
+                        <p class="subtitle">The dashboard aligns their timestamps and compares graph state, decisions, and policy definitions.</p>
+                    </div>
+                </section>
+                <section class="grid" id="comparisonGrid" aria-live="polite"></section>
+
+                <section class="snapshot-controls" id="timelineControls" hidden>
+                    <button class="snapshot-button" id="previousSnapshot" type="button" aria-label="Previous comparison snapshot">&#8592;</button>
+                    <div class="snapshot-slider-group">
+                        <input id="timelineSlider" type="range" min="0" max="0" value="0" step="1" aria-label="Comparison snapshot" />
+                        <div class="snapshot-caption">
+                            <span id="timePosition"></span>
+                            <strong id="timeLabel"></strong>
+                        </div>
+                    </div>
+                    <button class="snapshot-button" id="nextSnapshot" type="button" aria-label="Next comparison snapshot">&#8594;</button>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        (() => {
+            const palette = ['#2563eb', '#d97706', '#059669', '#7c3aed'];
+            const state = { datasets: [], timeline: [], cursor: 0 };
+            const fileInput = document.getElementById('fileInput');
+            const clearButton = document.getElementById('clearButton');
+            const slider = document.getElementById('timelineSlider');
+            const grid = document.getElementById('comparisonGrid');
+            const emptyState = document.getElementById('emptyState');
+            const timelineControls = document.getElementById('timelineControls');
+            const legend = document.getElementById('legend');
+            const errorMessage = document.getElementById('errorMessage');
+            const datasetList = document.getElementById('datasetList');
+            const previousSnapshot = document.getElementById('previousSnapshot');
+            const nextSnapshot = document.getElementById('nextSnapshot');
+
+            const escapeHtml = value => String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+
+            function relationKey(relation) {
+                return JSON.stringify([relation.source, relation.predicate, relation.target]);
+            }
+
+            function snapshotRelations(snapshot) {
+                if (Array.isArray(snapshot?.data?.relations)) return snapshot.data.relations;
+                return (snapshot?.data?.edges || []).map(edge => ({
+                    source: edge.source,
+                    predicate: edge.predicate,
+                    target: edge.target
+                }));
+            }
+
+            function validDataset(payload) {
+                return payload && Array.isArray(payload.snapshots) && payload.snapshots.length > 0;
+            }
+
+            function labelTime(label) {
+                const value = Date.parse(label);
+                return Number.isNaN(value) ? null : value;
+            }
+
+            function buildTimeline() {
+                const labels = [];
+                const seen = new Set();
+                state.datasets.forEach(dataset => {
+                    dataset.payload.snapshots.forEach(snapshot => {
+                        const label = String(snapshot.label);
+                        if (!seen.has(label)) {
+                            seen.add(label);
+                            labels.push(label);
+                        }
+                    });
+                });
+                const allDates = labels.every(label => labelTime(label) !== null);
+                state.timeline = allDates
+                    ? labels.sort((left, right) => labelTime(left) - labelTime(right))
+                    : labels;
+                state.cursor = Math.min(state.cursor, Math.max(0, state.timeline.length - 1));
+            }
+
+            function snapshotAt(dataset, timelineIndex) {
+                const snapshots = dataset.payload.snapshots;
+                const targetLabel = state.timeline[timelineIndex];
+                const exactIndex = snapshots.findIndex(snapshot => String(snapshot.label) === targetLabel);
+                if (exactIndex >= 0) return { snapshot: snapshots[exactIndex], index: exactIndex, carried: false };
+
+                const targetTime = labelTime(targetLabel);
+                if (targetTime !== null) {
+                    let previousIndex = -1;
+                    snapshots.forEach((snapshot, index) => {
+                        const time = labelTime(String(snapshot.label));
+                        if (time !== null && time <= targetTime) previousIndex = index;
+                    });
+                    const index = Math.max(0, previousIndex);
+                    return { snapshot: snapshots[index], index, carried: true };
+                }
+
+                const index = Math.min(timelineIndex, snapshots.length - 1);
+                return { snapshot: snapshots[index], index, carried: index !== timelineIndex };
+            }
+
+            function policySummary(dataset) {
+                const policy = dataset.payload.policy_definition;
+                if (!policy) return {
+                    version: dataset.fileName.replace(/\.json$/i, ''),
+                    name: 'Policy metadata unavailable',
+                    strategy: 'This output predates embedded policy definitions.'
+                };
+                const instructions = policy.instructions || {};
+                const entries = Object.entries(instructions);
+                const strategy = entries.length
+                    ? entries.map(([relationship, instruction]) => `${relationship}: ${instruction.resolution}`).join('\n\n')
+                    : 'Default evidence-resolution behavior applies to every epistemic relationship.';
+                return { version: policy.version, name: policy.name, strategy };
+            }
+
+            function currentComparison() {
+                const current = state.datasets.map(dataset => ({
+                    dataset,
+                    ...snapshotAt(dataset, state.cursor)
+                }));
+                const counts = new Map();
+                current.forEach(item => {
+                    new Set(snapshotRelations(item.snapshot).map(relationKey)).forEach(key => {
+                        counts.set(key, (counts.get(key) || 0) + 1);
+                    });
+                });
+                const consensus = new Set(
+                    [...counts.entries()]
+                        .filter(([, count]) => count === current.length)
+                        .map(([key]) => key)
+                );
+                return { current, counts, consensus };
+            }
+
+            function svgElement(name, attributes = {}) {
+                const element = document.createElementNS('http://www.w3.org/2000/svg', name);
+                Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+                return element;
+            }
+
+            function drawGraph(svg, relations, consensus, color, panelIndex) {
+                svg.replaceChildren();
+                svg.setAttribute('viewBox', '0 0 620 280');
+                if (!relations.length) {
+                    const message = svgElement('text', { x: 310, y: 142, class: 'empty-graph' });
+                    message.textContent = 'No active relations';
+                    svg.appendChild(message);
+                    return;
+                }
+
+                const markerId = `arrow-${panelIndex}`;
+                const defs = svgElement('defs');
+                const marker = svgElement('marker', {
+                    id: markerId, viewBox: '0 0 10 10', refX: 9, refY: 5,
+                    markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse'
+                });
+                marker.appendChild(svgElement('path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: color }));
+                defs.appendChild(marker);
+                svg.appendChild(defs);
+
+                const names = [...new Set(relations.flatMap(relation => [relation.source, relation.target]))].sort();
+                const centerX = 310;
+                const centerY = 138;
+                const radiusX = Math.min(245, 95 + names.length * 14);
+                const radiusY = Math.min(105, 58 + names.length * 6);
+                const positions = new Map(names.map((name, index) => {
+                    const angle = -Math.PI / 2 + (Math.PI * 2 * index / names.length);
+                    return [name, {
+                        x: centerX + Math.cos(angle) * radiusX,
+                        y: centerY + Math.sin(angle) * radiusY
+                    }];
+                }));
+
+                relations.forEach(relation => {
+                    const start = positions.get(relation.source);
+                    const end = positions.get(relation.target);
+                    const common = consensus.has(relationKey(relation));
+                    const line = svgElement('line', {
+                        x1: start.x, y1: start.y, x2: end.x, y2: end.y,
+                        class: `edge ${common ? 'consensus' : 'divergent'}`,
+                        'marker-end': `url(#${markerId})`
+                    });
+                    if (common) line.setAttribute('marker-end', 'none');
+                    svg.appendChild(line);
+                    const label = svgElement('text', {
+                        x: (start.x + end.x) / 2,
+                        y: (start.y + end.y) / 2 - 5,
+                        class: 'edge-label'
+                    });
+                    label.textContent = relation.predicate;
+                    svg.appendChild(label);
+                });
+
+                names.forEach(name => {
+                    const position = positions.get(name);
+                    svg.appendChild(svgElement('circle', {
+                        cx: position.x, cy: position.y, r: 19, class: 'node'
+                    }));
+                    const label = svgElement('text', {
+                        x: position.x, y: position.y + 34, class: 'node-label'
+                    });
+                    label.textContent = name.length > 25 ? `${name.slice(0, 23)}…` : name;
+                    svg.appendChild(label);
+                });
+            }
+
+            function renderPanel(item, consensus, panelIndex) {
+                const { dataset, snapshot, index, carried } = item;
+                const relations = snapshotRelations(snapshot);
+                const divergent = relations.filter(relation => !consensus.has(relationKey(relation)));
+                const policy = policySummary(dataset);
+                const decisions = Array.isArray(snapshot.decisions) ? snapshot.decisions : [];
+                const latestDecision = decisions.at(-1);
+                const resolution = latestDecision?.policy_resolution;
+                const panel = document.createElement('article');
+                panel.className = 'kg-panel';
+                panel.style.setProperty('--series-color', dataset.color);
+                panel.innerHTML = `
+                    <header class="panel-head">
+                        <div class="panel-title-row">
+                            <div class="panel-title">${escapeHtml(policy.version)}</div>
+                            <div class="snapshot-position">Snapshot ${index + 1}/${dataset.payload.snapshots.length}${carried ? ' · carried forward' : ''}</div>
+                        </div>
+                        <div class="policy-name">${escapeHtml(policy.name)} · ${escapeHtml(dataset.fileName)}</div>
+                        <details class="strategy">
+                            <summary>Policy definition</summary>
+                            <p>${escapeHtml(policy.strategy).replaceAll('\n', '<br />')}</p>
+                        </details>
+                    </header>
+                    <div class="graph-wrap"><svg class="graph" role="img" aria-label="Knowledge graph for policy ${escapeHtml(policy.version)}"></svg></div>
+                    <footer class="panel-foot">
+                        <section class="detail-block">
+                            <h2>Policy-dependent relations</h2>
+                            ${divergent.length ? `<ul>${divergent.map(relation => `<li>${escapeHtml(relation.source)} —${escapeHtml(relation.predicate)}→ ${escapeHtml(relation.target)}</li>`).join('')}</ul>` : '<p class="no-detail">No divergence at this time.</p>'}
+                        </section>
+                        <section class="detail-block">
+                            <h2>Current decision</h2>
+                            ${latestDecision ? `<div class="decision"><strong>${escapeHtml(latestDecision.relationship)}</strong><br />${escapeHtml(latestDecision.old_fact_id)} → ${escapeHtml(latestDecision.new_fact_id)}${resolution ? `<br />Selected: ${escapeHtml(resolution.selected_evidence)} evidence` : ''}</div>` : '<p class="no-detail">No reconciliation decision.</p>'}
+                        </section>
+                    </footer>
+                `;
+                drawGraph(panel.querySelector('svg'), relations, consensus, dataset.color, panelIndex);
+                return panel;
+            }
+
+            function render() {
+                const hasData = state.datasets.length > 0;
+                emptyState.hidden = hasData;
+                timelineControls.hidden = !hasData;
+                legend.hidden = !hasData;
+                grid.replaceChildren();
+                document.getElementById('loadedCount').textContent = String(state.datasets.length);
+                document.getElementById('timelineCount').textContent = String(state.timeline.length);
+                datasetList.innerHTML = state.datasets.map(dataset => {
+                    const policy = policySummary(dataset);
+                    return `<div class="list-item" style="--item-color: ${dataset.color}">
+                        <strong>${escapeHtml(policy.version)}</strong>
+                        <span class="list-meta">${dataset.payload.snapshots.length} snapshots</span>
+                    </div>`;
+                }).join('');
+                if (!hasData) {
+                    document.getElementById('divergentCount').textContent = '0';
+                    document.getElementById('consensusCount').textContent = '0';
+                    return;
+                }
+
+                slider.max = String(Math.max(0, state.timeline.length - 1));
+                slider.value = String(state.cursor);
+                previousSnapshot.disabled = state.cursor === 0;
+                nextSnapshot.disabled = state.cursor === state.timeline.length - 1;
+                document.getElementById('timeLabel').textContent = state.timeline[state.cursor] || 'Snapshot';
+                document.getElementById('timePosition').textContent = `${state.cursor + 1} of ${state.timeline.length} aligned times`;
+
+                const { current, counts, consensus } = currentComparison();
+                document.getElementById('divergentCount').textContent = String(counts.size - consensus.size);
+                document.getElementById('consensusCount').textContent = String(consensus.size);
+                current.forEach((item, index) => grid.appendChild(renderPanel(item, consensus, index)));
+            }
+
+            async function loadFiles(files) {
+                errorMessage.textContent = '';
+                const selected = [...files];
+                if (selected.length > 4) {
+                    errorMessage.textContent = 'Choose no more than four JSON outputs.';
+                    return;
+                }
+                if (!selected.length) return;
+                const loaded = [];
+                for (const [index, file] of selected.entries()) {
+                    try {
+                        const payload = JSON.parse(await file.text());
+                        if (!validDataset(payload)) throw new Error('missing nonempty snapshots array');
+                        loaded.push({ payload, fileName: file.name, color: palette[index] });
+                    } catch (error) {
+                        errorMessage.textContent = `Could not load ${file.name}: ${error.message}`;
+                        return;
+                    }
+                }
+                state.datasets = loaded;
+                state.cursor = 0;
+                buildTimeline();
+                render();
+            }
+
+            fileInput.addEventListener('change', () => loadFiles(fileInput.files));
+            clearButton.addEventListener('click', () => {
+                state.datasets = [];
+                state.timeline = [];
+                state.cursor = 0;
+                fileInput.value = '';
+                errorMessage.textContent = '';
+                render();
+            });
+            slider.addEventListener('input', () => {
+                state.cursor = Number(slider.value);
+                render();
+            });
+            previousSnapshot.addEventListener('click', () => {
+                state.cursor = Math.max(0, state.cursor - 1);
+                render();
+            });
+            nextSnapshot.addEventListener('click', () => {
+                state.cursor = Math.min(state.timeline.length - 1, state.cursor + 1);
+                render();
+            });
+            render();
+        })();
+    </script>
+</body>
+</html>

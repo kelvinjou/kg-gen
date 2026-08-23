@@ -15,6 +15,7 @@ from experiments.temporal_state.models import (
 from experiments.temporal_state.visualizer.visualize_kg import (
     open_output_visualization,
     visualize_snapshots,
+    write_policy_comparison_dashboard,
 )
 
 
@@ -32,6 +33,26 @@ def test_open_output_visualization_opens_existing_html(tmp_path: Path) -> None:
 
     assert destination == graph_html.resolve()
     open_browser.assert_called_once_with(graph_html.resolve().as_uri())
+
+
+def test_policy_comparison_dashboard_loads_four_json_outputs(tmp_path: Path) -> None:
+    """Provide synchronized graph comparison without embedding snapshot data."""
+    destination = write_policy_comparison_dashboard(tmp_path / "dashboard.html")
+
+    html = destination.read_text(encoding="utf-8")
+    assert 'id="fileInput"' in html
+    assert 'accept="application/json,.json" multiple' in html
+    assert 'id="timelineSlider"' in html
+    assert "Choose no more than four JSON outputs." in html
+    assert "policy_definition" in html
+    assert "Policy-dependent relations" in html
+    assert "carried forward" in html
+    assert 'class="layout"' in html
+    assert 'class="sidebar"' in html
+    assert 'class="snapshot-controls"' in html
+    assert "grid-template-columns: 360px minmax(0, 1fr)" in html
+    assert "font-family: 'Inter'" in html
+    assert "background: #f8fafc" in html
 
 
 def test_snapshot_timeline_accepts_an_empty_graph(tmp_path: Path) -> None:
@@ -104,9 +125,10 @@ def test_snapshot_timeline_bookmarks_policy_resolutions(tmp_path: Path) -> None:
         relationship="contradiction",
         rationale="Neither report has enough authority to win.",
         policy_name="disaster_mitigation_evidence_resolution",
-        policy_version="4.0.0",
+        policy_version="5.1.0",
         policy_applied_for="contradiction",
         policy_resolution=EvidenceResolution(
+            selected_evidence="old",
             resolution=(
                 "Neither report is independently corroborated; preserve both while "
                 "direct field verification is pending."
@@ -124,6 +146,8 @@ def test_snapshot_timeline_bookmarks_policy_resolutions(tmp_path: Path) -> None:
     assert "policy-bookmark" in html
     assert "Policy resolution: ${escapeHtml(resolutionLabel)}" in html
     assert "Evidence handling" in html
+    assert "Selected operational evidence:" in html
+    assert '"selected_evidence": "old"' in html
     assert '"resolution": "Neither report is independently corroborated;' in html
 
 

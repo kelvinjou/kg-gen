@@ -1,0 +1,40 @@
+{
+  "policies": [
+    {
+      "name": "disaster_mitigation_baseline",
+      "version": "5.0.0",
+      "domain": "Emergency and disaster mitigation",
+      "instructions": { }
+    },
+    {
+      "name": "disaster_mitigation_evidence_resolution",
+      "version": "5.1.0",
+      "domain": "Emergency and disaster mitigation",
+      "instructions": {
+        "contradiction": {
+          "resolution": "Use a precautionary worst-credible-case strategy. Select the record that implies the greater immediate threat or the more protective operating posture: evacuation over no evacuation, closed or offline over open or operational, unsafe over safe, impassable over passable, and lower emergency capacity over higher capacity. Make that selection even when the more protective report is newer, less authoritative, or not yet corroborated, provided acting on it is reversible; do not select an optimistic claim merely to preserve continuity. Treat the result as a provisional Common Operating Picture entry and take the least-regret reversible action it requires. Preserve the competing record as disputed, assign a time-bounded verification task, and relax the protective posture only after direct evidence disproves the worst-credible claim."
+        }
+      }
+    },
+    {
+      "name": "disaster_mitigation_corroboration_first",
+      "version": "5.2.0",
+      "domain": "Emergency and disaster mitigation",
+      "instructions": {
+        "contradiction": {
+          "resolution": "Use a continuity-and-corroboration strategy that resists operational whiplash. Keep the old record as the active assertion unless the new record is supported by at least two independent sources that do not share an upstream report, or unless it carries an explicit formal correction from the owning agency. In an unresolved one-report-versus-one-report contradiction, select the old record even when the new report is newer, more specific, or more precautionary. Preserve the new record as disputed, stage contingency personnel or resources without changing the published operating status, and launch targeted verification through a separate field team, sensor, dispatch log, or responsible agency. Switch to the new record only when that independent corroboration threshold is met."
+        }
+      }
+    },
+    {
+      "name": "disaster_mitigation_command_authority_first",
+      "version": "5.3.0",
+      "domain": "Emergency and disaster mitigation",
+      "instructions": {
+        "contradiction": {
+          "resolution": "Use a jurisdictional command-authority strategy, independent of recency, corroboration count, and which claim is more restrictive. Select the record issued or validated by the function legally or operationally accountable for the affected capability: law enforcement or Incident Command for evacuations; the transportation control authority for road access; a qualified structural inspection authority for bridges; public-health or certified laboratory authority for drinking water; facility incident command for hospitals; shelter management for shelter status; and the utilities operator for reservoir capacity. Prefer that authority's record even when it is older or less precautionary. If neither source has the designated authority, retain the old record, mark the new one disputed, and refer the conflict to the Situation Unit for an authoritative ruling rather than resolving it by recency or worst-case bias."
+        }
+      }
+    }
+  ]
+}

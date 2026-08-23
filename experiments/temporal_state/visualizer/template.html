@@ -293,6 +293,53 @@
             display: none;
         }
 
+        .dataset-controls {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 16;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+            color: #334155;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .dataset-controls[hidden],
+        .dataset-file-input {
+            display: none;
+        }
+
+        .dataset-select,
+        .dataset-file-label {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #fff;
+            color: #0f172a;
+            font: inherit;
+        }
+
+        .dataset-select {
+            padding: 6px 8px;
+        }
+
+        .dataset-file-label {
+            padding: 6px 9px;
+            cursor: pointer;
+        }
+
+        .dataset-status {
+            max-width: 300px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
         .manual-override-panel {
             position: absolute;
             left: 50%;
@@ -934,6 +981,15 @@
             <section id="network" class="tab-panel active">
                 <div class="network-panel">
                     <canvas id="networkCanvas"></canvas>
+                    <div class="dataset-controls" id="datasetControls" hidden>
+                        <span>Policy version</span>
+                        <select class="dataset-select" id="datasetVersion" aria-label="Policy version"></select>
+                        <span class="dataset-status" id="datasetStatus"></span>
+                        <label class="dataset-file-label" id="datasetFileLabel" hidden>
+                            Choose JSON
+                            <input class="dataset-file-input" id="datasetFileInput" type="file" accept="application/json,.json" />
+                        </label>
+                    </div>
                     <aside class="decision-panel" id="decisionPanel" aria-live="polite"></aside>
                     <aside class="manual-override-panel" id="manualOverridePanel" aria-live="polite" hidden></aside>
                     <div class="snapshot-controls" id="snapshotControls" hidden>
@@ -987,8 +1043,11 @@
     <script id="viz-data" type="application/json">
 <!--DATA-->
     </script>
+    <script id="viz-data-config" type="application/json">
+<!--DATA_CONFIG-->
+    </script>
     <script>
-        (function () {
+        (async function () {
             console.log('[iframe] Script starting - mobile check:', window.innerWidth <= 768);
             console.log('[iframe] User agent:', navigator.userAgent);
 
@@ -998,12 +1057,91 @@
                 return;
             }
 
-            let payload;
+            const configElement = document.getElementById('viz-data-config');
+            let dataConfig = {};
             try {
-                payload = JSON.parse(dataElement.textContent);
-            } catch (e) {
-                console.error('[iframe] Failed to parse data:', e);
+                dataConfig = JSON.parse(configElement?.textContent || '{}');
+            } catch (error) {
+                console.error('[iframe] Failed to parse data config:', error);
                 return;
+            }
+
+            const configuredDatasets = Array.isArray(dataConfig.datasets)
+                ? dataConfig.datasets
+                : [];
+            let payload;
+            if (configuredDatasets.length) {
+                const controls = document.getElementById('datasetControls');
+                const versionSelect = document.getElementById('datasetVersion');
+                const status = document.getElementById('datasetStatus');
+                const fileLabel = document.getElementById('datasetFileLabel');
+                const fileInput = document.getElementById('datasetFileInput');
+                const requestedVersion = new URLSearchParams(window.location.search)
+                    .get('version');
+                const selectedDataset = configuredDatasets.find(
+                    dataset => dataset.version === requestedVersion
+                ) || configuredDatasets.find(
+                    dataset => dataset.version === dataConfig.default_version
+                ) || configuredDatasets[0];
+
+                configuredDatasets.forEach(dataset => {
+                    const option = document.createElement('option');
+                    option.value = dataset.version;
+                    option.textContent = dataset.version;
+                    option.selected = dataset.version === selectedDataset.version;
+                    versionSelect.appendChild(option);
+                });
+                controls.hidden = false;
+                versionSelect.addEventListener('change', () => {
+                    const nextUrl = new URL(window.location.href);
+                    nextUrl.searchParams.set('version', versionSelect.value);
+                    window.location.assign(nextUrl.toString());
+                });
+
+                const chooseLocalDataset = error => {
+                    console.error('[iframe] Failed to load snapshot JSON:', error);
+                    status.textContent = 'Automatic loading was blocked. Choose the matching JSON file.';
+                    fileLabel.hidden = false;
+                    return new Promise((resolve, reject) => {
+                        fileInput.addEventListener('change', async () => {
+                            const file = fileInput.files?.[0];
+                            if (!file) return;
+                            try {
+                                const loadedPayload = JSON.parse(await file.text());
+                                status.textContent = `Loaded ${file.name}`;
+                                fileLabel.hidden = true;
+                                resolve(loadedPayload);
+                            } catch (fileError) {
+                                status.textContent = `Could not read ${file.name}`;
+                                reject(fileError);
+                            }
+                        }, { once: true });
+                    });
+                };
+
+                try {
+                    status.textContent = `Loading ${selectedDataset.path}…`;
+                    const response = await fetch(selectedDataset.path, { cache: 'no-store' });
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status} for ${selectedDataset.path}`);
+                    }
+                    payload = await response.json();
+                    status.textContent = `Loaded ${selectedDataset.path}`;
+                } catch (error) {
+                    try {
+                        payload = await chooseLocalDataset(error);
+                    } catch (fileError) {
+                        console.error('[iframe] Failed to parse selected JSON:', fileError);
+                        return;
+                    }
+                }
+            } else {
+                try {
+                    payload = JSON.parse(dataElement.textContent);
+                } catch (error) {
+                    console.error('[iframe] Failed to parse data:', error);
+                    return;
+                }
             }
 
             const isTimeline = Array.isArray(payload.snapshots);
@@ -1303,9 +1441,17 @@
                         ? `<div class="decision-transition">Transition: ${escapeHtml(decision.transition_time)}</div>`
                         : '';
                     const policy = decision.policy_resolution;
+                    const selectedFactId = policy?.selected_evidence === 'old'
+                        ? decision.old_fact_id
+                        : policy?.selected_evidence === 'new'
+                            ? decision.new_fact_id
+                            : null;
                     const policyDetails = policy ? `
                         <div class="policy-resolution">
                             <div class="policy-resolution-title">Evidence handling · ${escapeHtml(decision.policy_name)}</div>
+                            ${selectedFactId
+                                ? `<div><strong>Selected operational evidence:</strong> ${escapeHtml(selectedFactId)}</div>`
+                                : ''}
                             <div>${escapeHtml(policy.resolution)}</div>
                         </div>
                     ` : '';
@@ -1417,9 +1563,20 @@
                     relationMap.set(key, { ...edge });
                 });
 
-                overlays.forEach(({ checkpointIndex, option }) => {
+                overlays.forEach(({ checkpointIndex, conflict, option }) => {
                     const observation = evidenceTimeline[option.evidence_index]?.observation;
                     if (!observation) return;
+                    (conflict.options || []).forEach(conflictingOption => {
+                        const conflictingObservation = evidenceTimeline[
+                            conflictingOption.evidence_index
+                        ]?.observation;
+                        if (!conflictingObservation) return;
+                        relationMap.delete(JSON.stringify([
+                            conflictingObservation.subject,
+                            conflictingObservation.relation,
+                            conflictingObservation.object
+                        ]));
+                    });
                     const matchingEdge = option.data.edges.find(edge =>
                         edge.source === observation.subject &&
                         edge.predicate === observation.relation &&
