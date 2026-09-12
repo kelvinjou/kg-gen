@@ -5,6 +5,7 @@ from collections import Counter
 
 from experiments.temporal_state.cases.vaccine_contradiction_benchmark import (
     GOLD_DECISIONS,
+    GOLD_LIFECYCLE_TRANSITIONS,
     POLICY_PATH,
     VaccineGoldClassifier,
     evaluate_vaccine_classifier,
@@ -29,7 +30,7 @@ def test_vaccine_cases_cover_every_requested_dimension() -> None:
         for decision in GOLD_DECISIONS
         for dimension in decision.contradiction_dimensions
     }
-    assert len(vaccine_observations()) == 2 * len(GOLD_DECISIONS) + 2 == 18
+    assert len(vaccine_observations()) == 2 * len(GOLD_DECISIONS) + 3 == 75
     assert dimensions == {
         "source_reliability",
         "source_recency",
@@ -48,6 +49,26 @@ def test_vaccine_policy_defines_expiration_lifecycle_guidance() -> None:
     instruction = policy.lifecycle_instructions["expiration"].resolution
     assert "valid_to boundary" in instruction
     assert "preserving its historical interval" in instruction
+    assert set(policy.instructions) == {
+        "coexists",
+        "state_transition",
+        "contradiction",
+        "uncertain",
+    }
+
+
+def test_vaccine_stress_progression_drains_multiple_expirations() -> None:
+    observations = vaccine_observations()
+
+    assert len(GOLD_LIFECYCLE_TRANSITIONS) >= 5
+    assert list(observations) == sorted(
+        observations, key=lambda observation: observation.observed_at
+    )
+    assert {transition.fact_id for transition in GOLD_LIFECYCLE_TRANSITIONS} <= {
+        observation.fact_id
+        for observation in observations
+        if observation.valid_to is not None
+    }
 
 
 def test_llm_run_writes_each_viewer_from_the_evaluated_execution(
@@ -104,8 +125,8 @@ def test_llm_run_writes_each_viewer_from_the_evaluated_execution(
     reports = run_module.run("llm")
 
     assert set(reports) == {"policy_llm", "generic_llm"}
-    assert [classifier.calls for classifier in classifiers] == [8, 8]
-    assert [len(call[0]) for call in viewer_calls] == [18, 18]
+    assert [classifier.calls for classifier in classifiers] == [36, 36]
+    assert [len(call[0]) for call in viewer_calls] == [75, 75]
     assert [call[4] for call in viewer_calls] == ["policy_llm", "generic_llm"]
     assert all(call[3] is reports for call in viewer_calls)
     assert [(call[1].name, call[2]) for call in viewer_calls] == [
@@ -118,11 +139,13 @@ def test_gold_labels_do_not_pool_semantically_different_cases() -> None:
     issue_counts = Counter(decision.issue_type for decision in GOLD_DECISIONS)
 
     assert issue_counts == {
-        "logical_contradiction": 3,
-        "temporal_change": 2,
-        "compatible": 1,
-        "granularity_mismatch": 1,
-        "uncertainty": 1,
+        "logical_contradiction": 8,
+        "temporal_change": 7,
+        "compatible": 4,
+        "granularity_mismatch": 5,
+        "uncertainty": 4,
+        "duplicate": 4,
+        "correction": 4,
     }
     assert {decision.expected_action for decision in GOLD_DECISIONS} == {
         "accept_new",
@@ -143,7 +166,7 @@ def test_policy_oracle_scores_each_layer_and_preserves_audit_history() -> None:
     assert report.resolution_accuracy == 1.0
     assert report.policy_violation_rate == 0.0
     assert report.audit_preservation_rate == 1.0
-    assert report.lifecycle_cases == 1
+    assert report.lifecycle_cases == 11
     assert report.lifecycle_resolution_accuracy == 1.0
 
 

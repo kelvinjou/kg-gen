@@ -1,6 +1,6 @@
 {
   "name": "vaccine_claim_resolution",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "domain": "Vaccine evidence and immunization guidance",
   "instructions": {
     "contradiction": {
