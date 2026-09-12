@@ -11,6 +11,9 @@ from unittest.mock import Mock
 import pytest
 
 from experiments.temporal_state.cases.nonconsecutive_contradictions import POLICY_PATH
+from experiments.temporal_state.cases.vaccine_contradiction_benchmark import (
+    POLICY_PATH as VACCINE_POLICY_PATH,
+)
 from experiments.temporal_state.ledger import (
     OpenAIRelationshipClassifier,
     TemporalLedger,
@@ -18,12 +21,49 @@ from experiments.temporal_state.ledger import (
 )
 from experiments.temporal_state.models import (
     EvidenceResolution,
+    LifecycleResolution,
     ReconciliationDecision,
     TemporalFact,
 )
 from experiments.temporal_state.project import project_graph
 
 UTC = timezone.utc
+
+
+def test_expiration_resolution_uses_natural_language_lifecycle_policy() -> None:
+    """Send the configured expiration prose through the lifecycle policy pass."""
+    client = Mock()
+    expected = LifecycleResolution(
+        review_required=True,
+        resolution="Expire the current assertion and preserve its audit history.",
+    )
+    client.chat.completions.parse.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(parsed=expected))]
+    )
+    classifier = OpenAIRelationshipClassifier(
+        model="test-model",
+        client=client,
+        use_policy=True,
+        policy_path=VACCINE_POLICY_PATH,
+    )
+    fact = TemporalFact(
+        fact_id="expiring-guidance",
+        subject="Guidance",
+        relation="has_status",
+        object="Current",
+        valid_from=datetime(2026, 9, 1, 12, 0, tzinfo=UTC),
+        valid_to=datetime(2026, 9, 1, 12, 5, tzinfo=UTC),
+        observed_at=datetime(2026, 9, 1, 12, 0, tzinfo=UTC),
+        source_text="The guidance is effective for five minutes.",
+    )
+
+    resolution = classifier.resolve_expiration(fact)
+
+    assert resolution == expected
+    request = client.chat.completions.parse.call_args.kwargs
+    assert request["response_format"] is LifecycleResolution
+    assert "valid_to boundary" in request["messages"][0]["content"]
+    assert '"event_type": "expiration"' in request["messages"][1]["content"]
 
 
 def _fact(fact_id: str, object_: str, minute: int) -> TemporalFact:

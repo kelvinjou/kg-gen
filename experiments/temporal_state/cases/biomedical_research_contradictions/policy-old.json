@@ -1,0 +1,56 @@
+{
+  "policies": [
+    {
+      "name": "biomedical_statistical_synthesis",
+      "version": "1.0.0",
+      "domain": "Biomedical research evidence synthesis",
+      "instructions": {
+        "contradiction": {
+          "resolution": "Use statistical synthesis only when the studies estimate sufficiently comparable effects for aligned populations, interventions, comparators, outcomes, and follow-up periods. Harmonize effect measures, then apply a prespecified random-effects meta-analysis; weight findings using study quality, effective sample size, precision, and relevance without double-counting the same attribute. Report the pooled effect or probability distribution with its confidence interval, prediction interval, heterogeneity estimate, and sensitivity analyses. Use prespecified subgroup analysis or meta-regression to test plausible sources of variation, but do not convert exploratory associations into causal explanations. Select as the active conclusion the supplied finding whose direction and magnitude are most consistent with the synthesis only when the pooled result crosses the decision threshold and remains robust to influential-study, bias, and model-specification analyses. Preserve every conflicting finding with provenance. If the threshold is not crossed, the prediction interval spans materially different decisions, or the result is highly model-sensitive, state that the evidence remains uncertain and preserve the conflict rather than presenting the aggregate as decisive."
+        },
+        "uncertain": {
+          "resolution": "Use confidence-weighted aggregation when multiple findings address a sufficiently aligned biomedical question but none alone is decisive. Assign prespecified weights using study quality, effective sample size, precision, and relevance, documenting each component and avoiding double-counting correlated evidence or repeated cohorts. Combine the findings into a calibrated probability or effect distribution and report the estimate together with its confidence or credible interval, prediction interval when appropriate, heterogeneity, assumptions, and sensitivity to alternative weighting choices. Express the active conclusion probabilistically, for example that a treatment likely reduces mortality with a stated probability, while explicitly retaining the residual uncertainty. Select the supplied evidence record most consistent with the weighted aggregate as the active operational assertion, but preserve every other finding with provenance and do not describe the selected record as certain. If aggregation assumptions fail or the result does not cross the prespecified confidence threshold, preserve the uncertain status and defer to abstention rather than forcing a conclusion."
+        }
+      }
+    },
+    {
+      "name": "biomedical_contextual_causal_separation",
+      "version": "1.1.0",
+      "domain": "Biomedical research evidence synthesis",
+      "instructions": {
+        "contradiction": {
+          "resolution": "Use contextual or causal separation when the findings may answer different causal questions. Reconstruct each study's population, intervention or exposure, comparator, outcome definition, time zero, follow-up, dose, disease stage, setting, estimand, and confounding assumptions; use stratification, causal diagrams, or target-trial reasoning where appropriate. If a credible effect modifier or design difference explains the disagreement, replace the overgeneralized claim with conditional claims and select as active only the evidence applicable to the target context, stating that context explicitly. Retain the competing evidence as applicable to its own context or as uncertain outside the studied context; do not downgrade it merely because it differs. Quantify uncertainty separately within each conditional claim and distinguish absence of evidence from evidence of no effect. If the contexts cannot be separated with available data, do not invent a subgroup explanation: preserve the contradiction and report which contextual distinction requires further evidence."
+        },
+        "uncertain": {
+          "resolution": "Use contextual coexistence when uncertainty may arise because evidence applies differently across populations, doses, disease stages, outcome definitions, follow-up periods, or study settings. Reconstruct those dimensions for each finding and split the overgeneralized proposition into the narrowest evidence-supported conditional claims. Select as active the supplied record applicable to the target context and state that context in the conclusion; retain the other record with provenance as applicable to its own context or as insufficient evidence for the target context. Report uncertainty separately for every conditional claim, including where evidence is absent, indirect, or imprecise, and never extrapolate certainty from one subgroup to another. If no credible contextual distinction explains the uncertainty, keep the general claim unresolved rather than manufacturing conditional coexistence."
+        }
+      }
+    },
+    {
+      "name": "biomedical_evidence_quality_adjudication",
+      "version": "1.2.0",
+      "domain": "Biomedical research evidence synthesis",
+      "instructions": {
+        "contradiction": {
+          "resolution": "Use evidence-quality adjudication when bias or evidentiary weakness, rather than true biological heterogeneity, plausibly explains the conflict. Evaluate each finding with a transparent framework covering study design, randomization and allocation concealment, blinding, attrition, selective reporting, confounding, sample size, precision, indirectness, inconsistency, publication bias, multiplicity, and data integrity. Assign greater epistemic weight to the finding with higher overall certainty, such as a well-powered low-risk-of-bias randomized trial over a small biased observational study, but select it as active only when the certainty difference exceeds a prespecified threshold and its result is sufficiently precise and relevant to the target question. Record the ratings, reasons for downgrading or upgrading, threshold, and provenance; retain the lower-certainty finding as disputed rather than deleting it. If certainty is similar, both studies are credible, or the leading result remains imprecise, abstain from declaring a winner and report the unresolved uncertainty."
+        },
+        "uncertain": {
+          "resolution": "Use highest-certainty adjudication when the available conclusions differ materially in evidence quality. Rate each finding with a transparent biomedical certainty framework covering risk of bias, inconsistency, indirectness, imprecision, publication bias, sample size, relevance, and data integrity. Select one supplied conclusion as active only if its certainty exceeds the alternative by a prespecified threshold and the leading estimate itself clears the required precision and decision-confidence threshold; a low-bias, well-powered randomized trial should normally outweigh a small biased observational study when these conditions hold. Preserve all conflicting or weaker evidence with provenance and record the ratings, threshold, and reasons for the decision. Do not equate study design alone with certainty. If the quality difference is below threshold or the strongest evidence remains materially uncertain, retain the uncertain status and abstain from selecting an epistemic winner."
+        }
+      }
+    },
+    {
+      "name": "biomedical_prospective_discriminating_experiment",
+      "version": "1.3.0",
+      "domain": "Biomedical research evidence synthesis",
+      "instructions": {
+        "contradiction": {
+          "resolution": "Use prospective discriminating research when credible existing studies remain irreconcilable or no conclusion crosses the confidence threshold. Make no epistemic winner: label the evidence contested or inconclusive, retain both hypotheses and all supporting records with provenance, and state the decision-relevant uncertainty. Formulate the competing explanations as prospectively testable hypotheses, then specify a preregistered, sufficiently powered, preferably multicenter study that directly discriminates between them, with an agreed target population, intervention or exposure, comparator, outcomes, time horizon, analysis plan, stopping rules, missing-data handling, and decisive result criteria. Where feasible, use adversarial collaboration and independent replication, with safety monitoring and ethical constraints appropriate to biomedical research. If the runtime schema requires old or new evidence to be selected, treat that selection only as a reversible operational placeholder chosen by least expected harm; explicitly state that it is not a scientific resolution, preserve the other record as equally unresolved, and trigger review when the discriminating evidence arrives."
+        },
+        "uncertain": {
+          "resolution": "Use abstention when no conclusion crosses the prespecified confidence threshold or credible high-quality findings remain irreconcilable. Do not declare an epistemic winner. Report that the evidence is contested or inconclusive, retain both hypotheses and every supporting record with provenance, identify the uncertainty that prevents resolution, and recommend the additional observation, analysis, replication, or prospective discriminating experiment most likely to resolve it. State the threshold and the evidence needed to revisit the decision. If the runtime schema requires old or new evidence to be selected, use the least-harm record only as a reversible operational placeholder, label it explicitly as non-decisive, preserve the other record as equally unresolved, and trigger reassessment when new evidence arrives."
+        }
+      }
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 """Behavior checks for the interleaved disaster-mitigation contradiction case."""
 
 import json
+from datetime import timedelta
+from types import SimpleNamespace
 
 from experiments.temporal_state.annotate import TemporalAnnotator
 from experiments.temporal_state.cases.nonconsecutive_contradictions import (
@@ -10,6 +12,7 @@ from experiments.temporal_state.cases.nonconsecutive_contradictions import (
 )
 from experiments.temporal_state.cases.nonconsecutive_contradictions.run import (
     output_path_for_policy,
+    snapshot_known_at,
 )
 from experiments.temporal_state.ledger import (
     TemporalLedger,
@@ -34,7 +37,7 @@ def _ingest_case() -> tuple[TemporalLedger, list[tuple]]:
         graph = project_graph(
             ledger,
             valid_at=observation.observed_at,
-            known_at=observation.observed_at,
+            known_at=snapshot_known_at(ledger, observation.observed_at),
         )
         snapshots.append(
             (observation.observed_at.isoformat(), graph, decisions, observation)
@@ -51,6 +54,18 @@ def test_case_has_twenty_ordered_observations() -> None:
     assert [observation.observed_at for observation in observations] == sorted(
         observation.observed_at for observation in observations
     )
+
+
+def test_snapshot_knowledge_time_includes_reconciliation_decisions() -> None:
+    """Do not hide runtime decisions behind the scenario's timestamps."""
+    observation_time = nonconsecutive_contradiction_observations()[-1].observed_at
+    decision_time = observation_time + timedelta(days=1)
+    ledger = SimpleNamespace(decisions=(SimpleNamespace(decided_at=decision_time),))
+
+    known_at = snapshot_known_at(ledger, observation_time)
+
+    assert all(decision.decided_at <= known_at for decision in ledger.decisions)
+    assert known_at == decision_time
 
 
 def test_case_keeps_its_domain_policy_colocated() -> None:
@@ -87,9 +102,7 @@ def test_case_policy_variants_have_unique_versions() -> None:
         "contradiction",
         "uncertain",
     )
-    assert all(
-        set(policy.instructions) == {"contradiction"} for policy in specialized
-    )
+    assert all(set(policy.instructions) == {"contradiction"} for policy in specialized)
 
 
 def test_policy_outputs_are_versioned_inside_the_case() -> None:
@@ -167,8 +180,9 @@ def test_disputed_claims_do_not_erase_uncontested_mitigation_evidence() -> None:
     ledger, _ = _ingest_case()
     observations = nonconsecutive_contradiction_observations()
     final_time = observations[-1].observed_at
-    facts = ledger.effective_facts(known_at=final_time)
-    graph = project_graph(ledger, valid_at=final_time, known_at=final_time)
+    known_at = snapshot_known_at(ledger, final_time)
+    facts = ledger.effective_facts(known_at=known_at)
+    graph = project_graph(ledger, valid_at=final_time, known_at=known_at)
 
     assert sum(fact.status == "disputed" for fact in facts) == 16
     assert sum(fact.status == "active" for fact in facts) == 4
@@ -200,6 +214,7 @@ def test_visualizer_embeds_all_twenty_raw_observations(tmp_path) -> None:
     assert payload["timeline_config"] == {
         "policy_only_snapshots": True,
         "enabled_policy_relationships": ["contradiction"],
+        "available_issue_types": ["logical_contradiction", "compatible"],
     }
     assert [
         index

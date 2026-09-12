@@ -1,15 +1,20 @@
-"""Run and visualize the 20-observation contradiction case with LM Studio."""
+"""Run and visualize the 60-observation biomedical evidence case with LM Studio."""
 
 from __future__ import annotations
 
+import argparse
 import re
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 
 from experiments.temporal_state.annotate import TemporalAnnotator
-from experiments.temporal_state.cases.nonconsecutive_contradictions import (
+from experiments.temporal_state.cases.biomedical_research_contradictions import (
     POLICY_PATH,
-    nonconsecutive_contradiction_observations,
+    biomedical_evidence_observations,
+)
+from experiments.temporal_state.cases.biomedical_research_contradictions.export_policy_comparison import (
+    update_policy_comparison_csv,
 )
 from experiments.temporal_state.ledger import (
     OpenAIRelationshipClassifier,
@@ -29,7 +34,7 @@ USE_POLICY = True
 POLICY_ONLY_SNAPSHOTS = False
 OPEN_IN_BROWSER = True
 CASE_OUTPUT_DIR = Path(__file__).resolve().parent / "output"
-OUTPUT_STEM = "nonconsecutive-contradictions"
+OUTPUT_STEM = "biomedical-research-contradictions"
 VIEWER_PATH = CASE_OUTPUT_DIR / f"{OUTPUT_STEM}.html"
 COMPARISON_DASHBOARD_PATH = CASE_OUTPUT_DIR / f"{OUTPUT_STEM}-dashboard.html"
 
@@ -55,7 +60,7 @@ def output_path_for_policy(policy: ResolutionPolicy) -> Path:
 
 
 def run_policy(policy_path: str | Path, policy_version: str) -> Path:
-    """Ingest the scenario and write its versioned timeline data as JSON."""
+    """Ingest the biomedical scenario and write versioned timeline JSON."""
     policy = load_resolution_policy(policy_path, policy_version=policy_version)
     print(f"policy={policy.name} version={policy.version}")
     annotator = TemporalAnnotator()
@@ -68,7 +73,7 @@ def run_policy(policy_path: str | Path, policy_version: str) -> Path:
     )
     snapshots = []
 
-    for observation in nonconsecutive_contradiction_observations():
+    for observation in biomedical_evidence_observations():
         fact = annotator.annotate(observation)
         decisions = ledger.ingest(fact)
         graph = project_graph(
@@ -90,11 +95,16 @@ def run_policy(policy_path: str | Path, policy_version: str) -> Path:
         policy=policy,
     )
     print(f"output={destination}")
+    comparison_path = update_policy_comparison_csv(
+        policy_path=Path(policy_path),
+        output_dir=CASE_OUTPUT_DIR,
+    )
+    print(f"comparison_csv={comparison_path}")
     return destination
 
 
 def run() -> tuple[Path, ...]:
-    """Generate versioned JSON datasets and their shared HTML viewer."""
+    """Generate three policy datasets, a shared viewer, and comparison dashboard."""
     policies = load_resolution_policies(POLICY_PATH)
     data_paths = tuple(
         run_policy(POLICY_PATH, policy.version) for policy in policies
@@ -114,6 +124,22 @@ def run() -> tuple[Path, ...]:
     return (viewer_path, dashboard_path, *data_paths)
 
 
+def main(argv: Sequence[str] | None = None) -> tuple[Path, ...]:
+    """Run every policy by default, or rerun one explicitly selected version."""
+    parser = argparse.ArgumentParser(
+        description="Run the biomedical contradiction-resolution scenario."
+    )
+    parser.add_argument(
+        "--policy-version",
+        choices=[policy.version for policy in load_resolution_policies(POLICY_PATH)],
+        help="Rerun only this policy version instead of the complete bundle.",
+    )
+    args = parser.parse_args(argv)
+    if args.policy_version is not None:
+        return (run_policy(POLICY_PATH, args.policy_version),)
+    return run()
+
+
 if __name__ == "__main__":
-    run()
-    # .venv/bin/python -m experiments.temporal_state.cases.nonconsecutive_contradictions.run
+    main()
+    # .venv/bin/python -m experiments.temporal_state.cases.biomedical_research_contradictions.run

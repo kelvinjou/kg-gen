@@ -9,6 +9,8 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 FactStatus = Literal["active", "expired", "retracted", "disputed"]
+LifecycleEventType = Literal["expiration"]
+LifecycleAction = Literal["expire"]
 Relationship = Literal[
     "duplicate",
     "coexists",
@@ -18,11 +20,60 @@ Relationship = Literal[
     "uncertain",
 ]
 Relation = tuple[str, str, str]
+IssueType = Literal[
+    "duplicate",
+    "compatible",
+    "logical_contradiction",
+    "temporal_change",
+    "granularity_mismatch",
+    "uncertainty",
+    "correction",
+]
+ContradictionDimension = Literal[
+    "source_reliability",
+    "source_recency",
+    "temporal_validity",
+    "relation_cardinality",
+    "negation",
+    "numerical_value",
+    "source_provenance",
+    "domain_policy",
+]
+ResolutionAction = Literal[
+    "accept_old",
+    "accept_new",
+    "retain_both",
+    "defer",
+    "qualify",
+]
+
+
+_ISSUE_FOR_RELATIONSHIP: dict[Relationship, IssueType] = {
+    "duplicate": "duplicate",
+    "coexists": "compatible",
+    "state_transition": "temporal_change",
+    "correction": "correction",
+    "contradiction": "logical_contradiction",
+    "uncertain": "uncertainty",
+}
 
 
 def utc_now() -> datetime:
     """Return the current timezone-aware UTC timestamp."""
     return datetime.now(timezone.utc)
+
+
+class Provenance(BaseModel):
+    """Structured source metadata kept separate from the evidence quotation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    source_id: str | None = None
+    source_type: str | None = None
+    publisher: str | None = None
+    uri: str | None = None
+    reliability: float | None = Field(default=None, ge=0.0, le=1.0)
+    methodological_quality: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class Observation(BaseModel):
@@ -34,6 +85,8 @@ class Observation(BaseModel):
     relation: str
     object: str
     source_text: str
+    provenance: "Provenance" = Field(default_factory=lambda: Provenance())
+    extraction_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     observed_at: datetime
     valid_from: datetime | None = None
     valid_to: datetime | None = None
@@ -81,6 +134,8 @@ class TemporalFact(BaseModel):
     valid_to: datetime | None = None
     observed_at: datetime
     source_text: str
+    provenance: "Provenance" = Field(default_factory=lambda: Provenance())
+    extraction_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     status: FactStatus = "active"
 
     @field_validator("subject", "relation", "object", "source_text")
@@ -122,12 +177,93 @@ class TemporalFact(BaseModel):
 
 
 class EvidenceResolution(BaseModel):
-    """Policy-guided selection applied after an epistemic decision."""
+    """Auditable policy action applied after an epistemic decision.
+
+    ``selected_evidence`` is retained for old datasets.  New experiments should
+    score ``action`` so abstention and preservation are not forced into a winner.
+    """
 
     model_config = ConfigDict(frozen=True)
 
-    selected_evidence: Literal["old", "new"]
+    action: ResolutionAction | None = None
+    selected_evidence: Literal["old", "new"] | None = None
+    qualified_assertion: str | None = None
+    review_required: bool = False
     resolution: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def normalize_legacy_selection(self) -> "EvidenceResolution":
+        """Keep old/new callers compatible while making the action explicit."""
+        action = self.action
+        selected = self.selected_evidence
+        if action is None and selected is None:
+            raise ValueError("resolution requires an action or selected_evidence")
+        if action is None:
+            action = "accept_old" if selected == "old" else "accept_new"
+            object.__setattr__(self, "action", action)
+        expected = {
+            "accept_old": "old",
+            "accept_new": "new",
+        }.get(action)
+        if expected is not None:
+            if selected is not None and selected != expected:
+                raise ValueError("action and selected_evidence disagree")
+            object.__setattr__(self, "selected_evidence", expected)
+        if action == "qualify" and not self.qualified_assertion:
+            raise ValueError("qualify requires qualified_assertion")
+        return self
+
+
+class LifecycleResolution(BaseModel):
+    """Validated graph effect returned by a natural-language lifecycle policy."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    action: LifecycleAction = "expire"
+    preserve_history: bool = True
+    review_required: bool = False
+    resolution: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def require_history_preservation(self) -> "LifecycleResolution":
+        """Expiration may change current state but never erase its evidence."""
+        if not self.preserve_history:
+            raise ValueError("lifecycle resolution must preserve history")
+        return self
+
+
+class LifecycleTransition(BaseModel):
+    """Auditable unary state transition caused by a scheduled lifecycle event."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    event_id: str = Field(default_factory=lambda: str(uuid4()))
+    event_type: LifecycleEventType
+    fact_id: str
+    effective_at: datetime
+    processed_at: datetime
+    prior_status: FactStatus
+    resulting_status: FactStatus
+    policy_name: str | None = None
+    policy_version: str | None = None
+    policy_resolution: LifecycleResolution
+
+    @field_validator("effective_at", "processed_at")
+    @classmethod
+    def require_event_timezone(cls, value: datetime) -> datetime:
+        """Reject lifecycle timestamps that omit a UTC offset."""
+        if value.tzinfo is None:
+            raise ValueError("lifecycle timestamps must be timezone-aware")
+        return value
+
+    @model_validator(mode="after")
+    def validate_expiration(self) -> "LifecycleTransition":
+        """Keep expiration transitions unary and semantically consistent."""
+        if self.event_type == "expiration" and self.resulting_status != "expired":
+            raise ValueError("expiration must result in expired status")
+        if (self.policy_name is None) != (self.policy_version is None):
+            raise ValueError("policy_name and policy_version must be set together")
+        return self
 
 
 class ReconciliationDecision(BaseModel):
@@ -139,6 +275,8 @@ class ReconciliationDecision(BaseModel):
     old_fact_id: str
     new_fact_id: str
     relationship: Relationship
+    issue_type: IssueType | None = None
+    contradiction_dimensions: tuple[ContradictionDimension, ...] = ()
     transition_time: datetime | None = None
     rationale: str = ""
     policy_name: str | None = None
@@ -164,6 +302,14 @@ class ReconciliationDecision(BaseModel):
             raise ValueError("state transitions require transition_time")
         if self.relationship != "state_transition" and self.transition_time is not None:
             raise ValueError("only state transitions may set transition_time")
+        if self.issue_type is None:
+            object.__setattr__(
+                self, "issue_type", _ISSUE_FOR_RELATIONSHIP[self.relationship]
+            )
+        if len(set(self.contradiction_dimensions)) != len(
+            self.contradiction_dimensions
+        ):
+            raise ValueError("contradiction_dimensions must be unique")
         policy_metadata = (
             self.policy_name,
             self.policy_version,

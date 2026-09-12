@@ -23,6 +23,8 @@ class TemporalAnnotator:
             "valid_to": observation.valid_to,
             "observed_at": observation.observed_at,
             "source_text": observation.source_text,
+            "provenance": observation.provenance,
+            "extraction_confidence": observation.extraction_confidence,
         }
         if observation.fact_id is not None:
             values["fact_id"] = observation.fact_id

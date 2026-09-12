@@ -1,0 +1,30 @@
+{
+  "policies": [
+    {
+      "name": "biomedical_research_baseline",
+      "version": "1.0.0",
+      "domain": "Biomedical research evidence synthesis",
+      "instructions": { }
+    },
+    {
+      "name": "biomedical_evidence_quality_adjudication",
+      "version": "1.2.0",
+      "domain": "Biomedical research evidence synthesis",
+      "instructions": {
+        "contradiction": {
+          "resolution": "Use evidence-quality adjudication when bias or evidentiary weakness, rather than true biological heterogeneity, plausibly explains the conflict. Evaluate each finding with a transparent framework covering study design, randomization and allocation concealment, blinding, attrition, selective reporting, confounding, sample size, precision, indirectness, inconsistency, publication bias, multiplicity, and data integrity. Assign greater epistemic weight to the finding with higher overall certainty, such as a well-powered low-risk-of-bias randomized trial over a small biased observational study, but select it as active only when the certainty difference exceeds a prespecified threshold and its result is sufficiently precise and relevant to the target question. Record the ratings, reasons for downgrading or upgrading, threshold, and provenance; retain the lower-certainty finding as disputed rather than deleting it. If certainty is similar, both studies are credible, or the leading result remains imprecise, abstain from declaring a winner and report the unresolved uncertainty."
+        }
+      }
+    },
+    {
+      "name": "biomedical_regulatory_actionability_adjudication",
+      "version": "2.0.0",
+      "domain": "Biomedical research evidence synthesis",
+      "instructions": {
+        "contradiction": {
+          "resolution": "Use regulatory-actionability adjudication for biomedical contradictions. Select the assertion that should govern a clinical evidence ledger used for labeling, coverage, protocol, and benefit-risk decisions, rather than selecting solely by abstract evidentiary certainty. Apply this precedence: a current controlling regulator-approved label, formal approval decision, or authoritative source-of-record assessment relevant to the target claim; then a pivotal randomized trial primary result in the indicated population; then a prespecified trial analysis; then a peer-reviewed synthesis; then post hoc, extension, cross-trial, mechanistic, or biomarker extrapolation. Prefer an established formal clinical or regulatory conclusion over a dissenting interpretation or methodological critique unless the latter produced an authoritative revision, withdrawal, or label change. Do not extrapolate efficacy beyond the labeled or directly studied population. For safety contradictions, retain a credible risk-positive assertion when events are sparse and absence of causality has not been established, because clinical risk controls should not be relaxed on underpowered negative evidence. When records occupy the same tier and neither clearly controls, retain the incumbent formal conclusion as active. Select newer evidence only when it has higher precedence or documents an authoritative change; preserve the competing record as disputed with provenance. In the resolution, identify the controlling tier, target population, and any label, endpoint, or safety consideration that determined the selection."
+        }
+      }
+    }
+  ]
+}

@@ -143,6 +143,47 @@
             color: #64748b;
         }
 
+        .fact-finder-form {
+            display: flex;
+            gap: 8px;
+        }
+
+        .fact-finder-form .search-input {
+            min-width: 0;
+        }
+
+        .fact-finder-button {
+            flex: 0 0 auto;
+            padding: 0 13px;
+            border: 1px solid #1d4ed8;
+            border-radius: 10px;
+            background: #2563eb;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .fact-finder-button:hover {
+            background: #1d4ed8;
+        }
+
+        .fact-finder-status {
+            min-height: 1.2em;
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+
+        .fact-finder-status.error {
+            color: #b91c1c;
+        }
+
+        .evidence-card.fact-finder-match {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+        }
+
         .list {
             display: flex;
             flex-direction: column;
@@ -481,6 +522,45 @@
             display: none;
         }
 
+        .evaluation-panel {
+            position: absolute;
+            left: 18px;
+            bottom: 96px;
+            z-index: 10;
+            width: min(620px, calc(100% - 560px));
+            min-width: 420px;
+            max-height: 250px;
+            overflow: auto;
+            padding: 12px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+            backdrop-filter: blur(8px);
+        }
+
+        .evaluation-panel[hidden] { display: none; }
+        .evaluation-panel h2 { margin: 0 0 4px; font-size: 0.82rem; }
+        .evaluation-panel p { margin: 0 0 9px; color: #64748b; font-size: 0.7rem; }
+        .evaluation-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+        .evaluation-table th,
+        .evaluation-table td { padding: 5px 7px; border-bottom: 1px solid #e2e8f0; text-align: right; }
+        .evaluation-table th:first-child,
+        .evaluation-table td:first-child { text-align: left; }
+        .evaluation-table th { color: #475569; }
+        .evaluation-table .current-system { background: #eff6ff; color: #1e40af; font-weight: 700; }
+        .evaluation-delta.positive { color: #047857; }
+        .evaluation-delta.negative { color: #be123c; }
+
+        @media (max-width: 1100px) {
+            .evaluation-panel {
+                left: 18px;
+                width: min(440px, calc(100% - 36px));
+                min-width: 0;
+                max-height: 190px;
+            }
+        }
+
         .decision-panel-header {
             display: flex;
             align-items: center;
@@ -581,6 +661,75 @@
             color: #64748b;
         }
 
+        .source-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 8px;
+            margin-top: 9px;
+        }
+
+        .source-profile {
+            min-width: 0;
+            padding: 9px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+
+        .source-profile.selected {
+            border-color: #16a34a;
+            box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.12);
+        }
+
+        .source-profile-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            color: #334155;
+            font-weight: 700;
+        }
+
+        .source-selected-chip {
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: #dcfce7;
+            color: #166534;
+            font-size: 0.62rem;
+            text-transform: uppercase;
+        }
+
+        .source-identity,
+        .source-score,
+        .source-missing {
+            margin-top: 5px;
+            color: #64748b;
+            font-size: 0.7rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .source-identity a {
+            color: #1d4ed8;
+        }
+
+        .source-score {
+            display: grid;
+            grid-template-columns: minmax(85px, auto) 1fr auto;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .source-score meter {
+            width: 100%;
+            height: 9px;
+        }
+
+        .source-missing {
+            color: #a16207;
+            font-style: italic;
+        }
+
         .evidence-raw summary {
             margin-top: 7px;
             color: #1d4ed8;
@@ -631,6 +780,83 @@
         .decision-badge.state_transition { background: #ede9fe; color: #6d28d9; }
         .decision-badge.coexists { background: #dcfce7; color: #15803d; }
         .decision-badge.duplicate { background: #e2e8f0; color: #475569; }
+
+        .issue-badge.logical_contradiction { background: #ffe4e6; color: #be123c; }
+        .issue-badge.temporal_change { background: #ede9fe; color: #6d28d9; }
+        .issue-badge.granularity_mismatch { background: #ffedd5; color: #c2410c; }
+        .issue-badge.uncertainty { background: #fef3c7; color: #a16207; }
+        .issue-badge.compatible { background: #dcfce7; color: #15803d; }
+        .issue-badge.correction { background: #dbeafe; color: #1d4ed8; }
+        .issue-badge.duplicate { background: #e2e8f0; color: #475569; }
+
+        .decision-badge-group,
+        .dimension-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .lifecycle-badge,
+        .dimension-chip,
+        .action-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 7px;
+            border-radius: 999px;
+            font-size: 0.66rem;
+            font-weight: 700;
+        }
+
+        .lifecycle-badge {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .dimension-list {
+            margin-top: 7px;
+        }
+
+        .dimension-chip {
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #475569;
+        }
+
+        .action-chip {
+            margin-bottom: 6px;
+            background: #0f172a;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        .decision-explanation-label {
+            margin-top: 8px;
+            color: #334155;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .decision-audit {
+            margin-top: 8px;
+            color: #475569;
+            font-size: 0.7rem;
+        }
+
+        .decision-audit summary {
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .decision-audit pre {
+            max-height: 180px;
+            overflow: auto;
+            padding: 7px;
+            border-radius: 6px;
+            background: #e2e8f0;
+            white-space: pre-wrap;
+        }
 
         .decision-pair,
         .decision-rationale,
@@ -729,6 +955,29 @@
             filter: drop-shadow(0 0 3px rgba(190, 18, 60, 0.55));
         }
 
+        .policy-bookmark.expiration-checkpoint {
+            display: grid;
+            width: 14px;
+            height: 14px;
+            place-items: center;
+            border: 2px solid #ffffff;
+            border-radius: 999px;
+            clip-path: none;
+            background: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.22);
+            font-size: 8px;
+            font-weight: 900;
+        }
+
+        .policy-bookmark.expiration-checkpoint::after { content: '✓'; }
+
+        .policy-bookmark.expiration-checkpoint.active {
+            background: #1e40af;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.32);
+            filter: none;
+        }
+
         .snapshot-caption {
             display: flex;
             align-items: center;
@@ -777,6 +1026,26 @@
 
         .snapshot-filter-toggle.override-card-toggle input {
             accent-color: #d97706;
+        }
+
+        .snapshot-issue-filter {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #334155;
+            font-size: 0.72rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .snapshot-issue-filter select {
+            max-width: 170px;
+            padding: 3px 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            background: #ffffff;
+            color: #0f172a;
+            font: inherit;
         }
 
         #snapshotLabel {
@@ -953,6 +1222,16 @@
                     relations" />
                 <div class="search-hint">Matches are highlighted. Press Escape to clear.</div>
             </div>
+            <div class="section" id="observationFinderSection" hidden>
+                <h2>Observation finder</h2>
+                <form class="fact-finder-form" id="factFinderForm">
+                    <input id="factIdInput" class="search-input" type="search"
+                        placeholder="Enter exact fact_id" aria-label="Observation fact ID" />
+                    <button class="fact-finder-button" type="submit">Find</button>
+                </form>
+                <div class="fact-finder-status" id="factFinderStatus" role="status" aria-live="polite"></div>
+                <div class="search-hint">Jumps to the interval containing that observation.</div>
+            </div>
             <div class="section" id="selectionSection">
                 <h2>Selection</h2>
                 <div id="selectionDetails" class="selection-card">Click a node or relation in the network to inspect
@@ -992,16 +1271,23 @@
                     </div>
                     <aside class="decision-panel" id="decisionPanel" aria-live="polite"></aside>
                     <aside class="manual-override-panel" id="manualOverridePanel" aria-live="polite" hidden></aside>
+                    <aside class="evaluation-panel" id="evaluationPanel" aria-live="polite" hidden></aside>
                     <div class="snapshot-controls" id="snapshotControls" hidden>
                         <button class="snapshot-button" id="previousSnapshot" type="button" aria-label="Previous snapshot">&#8592;</button>
                         <div class="snapshot-slider-group">
                             <div class="snapshot-slider-track">
                                 <input id="snapshotSlider" type="range" min="0" max="0" step="1" value="0" aria-label="Graph snapshot" aria-keyshortcuts="ArrowLeft ArrowRight" />
-                                <div class="policy-bookmarks" id="policyBookmarks" aria-label="Policy override bookmarks"></div>
+                                <div class="policy-bookmarks" id="policyBookmarks" aria-label="Policy and expiration checkpoints"></div>
                             </div>
                             <div class="snapshot-caption">
                                 <span id="snapshotPosition"></span>
                                 <div class="snapshot-toggle-group">
+                                    <label class="snapshot-issue-filter" id="issueTypeFilterLabel">
+                                        <span>Issue</span>
+                                        <select id="issueTypeFilter" aria-label="Filter by semantic issue type">
+                                            <option value="all">All types</option>
+                                        </select>
+                                    </label>
                                     <label class="snapshot-filter-toggle" id="policyOnlySnapshotsLabel">
                                         <input id="policyOnlySnapshots" type="checkbox" />
                                         <span>Policy events only</span>
@@ -1151,6 +1437,14 @@
             const evidenceTimeline = Array.isArray(payload.evidence_timeline)
                 ? payload.evidence_timeline
                 : [];
+            const evidenceByFactId = new Map(
+                evidenceTimeline
+                    .map(entry => entry?.observation)
+                    .filter(observation => observation?.fact_id)
+                    .map(observation => [observation.fact_id, observation])
+            );
+            document.getElementById('observationFinderSection').hidden =
+                evidenceTimeline.length === 0;
             const timelineConfig = payload.timeline_config || {};
             if (!snapshots.length) {
                 console.error('[iframe] No graph snapshots were provided.');
@@ -1161,6 +1455,11 @@
             const policySnapshotIndices = allSnapshotIndices.filter(
                 index => snapshots[index].policy_relevant === true
             );
+            const availableIssueTypes = Array.from(new Set(
+                snapshots.flatMap(snapshot =>
+                    Array.isArray(snapshot.issue_types) ? snapshot.issue_types : []
+                )
+            )).sort();
             const hasContradictionOverrides = snapshots.some(
                 snapshot => Array.isArray(snapshot.manual_overrides) &&
                     snapshot.manual_overrides.length > 0
@@ -1169,6 +1468,8 @@
                 timelineConfig.policy_only_snapshots
             ) && policySnapshotIndices.length > 0;
             let showContradictionOverrideCard = true;
+            let selectedIssueType = 'all';
+            let foundFactId = null;
             let visibleSnapshotIndices = policyOnlySnapshots
                 ? policySnapshotIndices
                 : allSnapshotIndices;
@@ -1297,6 +1598,7 @@
                 const nextButton = document.getElementById('nextSnapshot');
                 const policyToggle = document.getElementById('policyOnlySnapshots');
                 const policyToggleLabel = document.getElementById('policyOnlySnapshotsLabel');
+                const issueTypeFilter = document.getElementById('issueTypeFilter');
                 const overrideCardToggle = document.getElementById(
                     'showContradictionOverrideCard'
                 );
@@ -1326,6 +1628,14 @@
                 policyToggleLabel.title = policySnapshotIndices.length
                     ? `Show only snapshots classified as: ${enabledRelationships.join(', ')}`
                     : `No snapshots match: ${enabledRelationships.join(', ')}`;
+                issueTypeFilter.innerHTML = [
+                    '<option value="all">All types</option>',
+                    ...availableIssueTypes.map(issueType =>
+                        `<option value="${escapeHtml(issueType)}">${escapeHtml(formatLabel(issueType))}</option>`
+                    )
+                ].join('');
+                issueTypeFilter.value = selectedIssueType;
+                issueTypeFilter.disabled = availableIssueTypes.length === 0;
                 overrideCardToggle.checked = showContradictionOverrideCard;
                 overrideCardToggle.disabled = !hasContradictionOverrides;
                 overrideCardToggleLabel.title = hasContradictionOverrides
@@ -1337,20 +1647,33 @@
                     const resolutions = Array.isArray(snapshot.policy_resolutions)
                         ? snapshot.policy_resolutions
                         : [];
-                    if (!resolutions.length) return '';
+                    const lifecycleTransitions = Array.isArray(snapshot.lifecycle_transitions)
+                        ? snapshot.lifecycle_transitions
+                        : [];
+                    const resolvesExpiration = lifecycleTransitions.some(
+                        transition => transition.event_type === 'expiration'
+                    );
+                    if (!resolutions.length && !resolvesExpiration) return '';
                     const position = visibleSnapshotIndices.length === 1
                         ? 0
                         : (positionIndex / (visibleSnapshotIndices.length - 1)) * 100;
-                    const resolutionLabel = resolutions.join(', ');
+                    const resolutionLabel = resolvesExpiration
+                        ? 'expired observation resolved'
+                        : resolutions.join(', ');
                     const activeClass = index === snapshotIndex ? ' active' : '';
-                    return `<button class="policy-bookmark${activeClass}" ` +
+                    const expirationClass = resolvesExpiration
+                        ? ' expiration-checkpoint'
+                        : '';
+                    return `<button class="policy-bookmark${expirationClass}${activeClass}" ` +
                         `type="button" data-snapshot-index="${index}" ` +
                         `style="left: ${position}%" ` +
-                        `aria-label="Policy resolution at snapshot ${index + 1}: ${escapeHtml(resolutionLabel)}" ` +
-                        `title="Policy resolution: ${escapeHtml(resolutionLabel)}"></button>`;
+                        `aria-label="${resolvesExpiration ? 'Expiration checkpoint' : 'Policy resolution'} at snapshot ${index + 1}: ${escapeHtml(resolutionLabel)}" ` +
+                        `title="${resolvesExpiration ? 'Expiration checkpoint' : 'Policy resolution'}: ${escapeHtml(resolutionLabel)}"></button>`;
                 }).join('');
                 document.getElementById('snapshotPosition').textContent =
-                    (policyOnlySnapshots
+                    (selectedIssueType !== 'all'
+                        ? `${visiblePosition + 1} / ${visibleSnapshotIndices.length} ${formatLabel(selectedIssueType)} events`
+                        : policyOnlySnapshots
                         ? `${visiblePosition + 1} / ${visibleSnapshotIndices.length} policy events`
                         : `${snapshotIndex + 1} / ${snapshots.length}`) +
                     (recomputedBranchCount
@@ -1371,12 +1694,69 @@
                     .replaceAll("'", '&#039;');
             }
 
+            function formatLabel(value) {
+                return String(value || 'unknown').replaceAll('_', ' ');
+            }
+
+            function safeExternalUrl(value) {
+                try {
+                    const url = new URL(String(value || ''));
+                    return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+                } catch (_) {
+                    return null;
+                }
+            }
+
+            function normalizedScore(value) {
+                const number = Number(value);
+                return Number.isFinite(number) ? Math.max(0, Math.min(1, number)) : null;
+            }
+
+            function renderScore(label, value) {
+                const score = normalizedScore(value);
+                return score === null
+                    ? `<div class="source-score"><span>${escapeHtml(label)}</span><span class="source-missing">Not supplied</span><span>—</span></div>`
+                    : `<div class="source-score"><span>${escapeHtml(label)}</span><meter min="0" max="1" value="${score}"></meter><span>${Math.round(score * 100)}%</span></div>`;
+            }
+
+            function renderSourceProfile(observation, role, selectedFactId) {
+                if (!observation) {
+                    return `<article class="source-profile"><div class="source-profile-title">${escapeHtml(role)}</div><div class="source-missing">Observation not attached to this dataset.</div></article>`;
+                }
+                const provenance = observation.provenance || {};
+                const sourceUrl = safeExternalUrl(provenance.uri);
+                const sourceName = provenance.publisher || provenance.source_id || 'Unknown source';
+                const sourceLink = sourceUrl
+                    ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(sourceName)}</a>`
+                    : escapeHtml(sourceName);
+                const selected = observation.fact_id === selectedFactId;
+                return `
+                    <article class="source-profile${selected ? ' selected' : ''}">
+                        <div class="source-profile-title">
+                            <span>${escapeHtml(role)}</span>
+                            ${selected ? '<span class="source-selected-chip">Selected</span>' : ''}
+                        </div>
+                        <div class="source-identity"><strong>${sourceLink}</strong>${provenance.source_type ? ` · ${escapeHtml(formatLabel(provenance.source_type))}` : ''}</div>
+                        <div class="source-identity">Fact: ${escapeHtml(observation.fact_id || 'not supplied')}</div>
+                        ${renderScore('Reliability', provenance.reliability)}
+                        ${renderScore('Method quality', provenance.methodological_quality)}
+                        ${renderScore('Extraction', observation.extraction_confidence)}
+                        ${!provenance.source_id && !provenance.publisher
+                            ? '<div class="source-missing">Structured provenance not supplied.</div>'
+                            : ''}
+                    </article>
+                `;
+            }
+
             function renderDecisions() {
                 const panel = document.getElementById('decisionPanel');
                 panel.hidden = !isTimeline;
                 if (!isTimeline) return;
                 const snapshot = snapshots[snapshotIndex];
                 const decisions = Array.isArray(snapshot.decisions) ? snapshot.decisions : [];
+                const lifecycleTransitions = Array.isArray(snapshot.lifecycle_transitions)
+                    ? snapshot.lifecycle_transitions
+                    : [];
                 const evidenceIndices = Array.isArray(snapshot.evidence_indices)
                     ? snapshot.evidence_indices
                     : [];
@@ -1390,6 +1770,9 @@
                 const changeChips = [
                     observations.length
                         ? `<span class="change-chip">${observations.length} raw evidence</span>`
+                        : '',
+                    lifecycleTransitions.length
+                        ? `<span class="change-chip removed">${lifecycleTransitions.length} lifecycle step${lifecycleTransitions.length === 1 ? '' : 's'}</span>`
                         : '',
                     addedCount
                         ? `<span class="change-chip added"><span class="pulse-dot"></span>${addedCount} added</span>`
@@ -1409,8 +1792,11 @@
                     const factId = observation.fact_id
                         ? `<div class="evidence-meta">Fact ID: ${escapeHtml(observation.fact_id)}</div>`
                         : '';
+                    const matchClass = observation.fact_id === foundFactId
+                        ? ' fact-finder-match'
+                        : '';
                     return `
-                        <article class="evidence-card">
+                        <article class="evidence-card${matchClass}">
                             <div class="evidence-triple">${escapeHtml(observation.subject)} —${escapeHtml(observation.relation)}→ ${escapeHtml(observation.object)}</div>
                             ${factId}
                             <div class="evidence-meta">Observed: ${escapeHtml(observation.observed_at)}</div>
@@ -1419,6 +1805,34 @@
                             <details class="evidence-raw">
                                 <summary>Raw Observation JSON</summary>
                                 <pre>${escapeHtml(JSON.stringify(observation, null, 2))}</pre>
+                            </details>
+                        </article>
+                    `;
+                }).join('');
+
+                const lifecycleCards = lifecycleTransitions.map(transition => {
+                    const resolution = transition.policy_resolution || {};
+                    const instruction = payload.policy_definition
+                        ?.lifecycle_instructions?.[transition.event_type]?.resolution;
+                    return `
+                        <article class="decision-card">
+                            <div class="decision-card-row">
+                                <div class="decision-badge-group">
+                                    <span class="decision-badge issue-badge temporal_change">${escapeHtml(formatLabel(transition.event_type || 'lifecycle event'))}</span>
+                                    <span class="lifecycle-badge">graph: ${escapeHtml(formatLabel(transition.prior_status))} → ${escapeHtml(formatLabel(transition.resulting_status))}</span>
+                                </div>
+                            </div>
+                            <div class="decision-pair">Fact: ${escapeHtml(transition.fact_id)}</div>
+                            <div class="decision-transition">Effective: ${escapeHtml(transition.effective_at)}</div>
+                            <div class="decision-explanation-label">Lifecycle resolution</div>
+                            <div class="decision-rationale">${escapeHtml(resolution.resolution || '')}</div>
+                            ${resolution.review_required ? '<div><strong>Human review:</strong> required</div>' : ''}
+                            ${instruction
+                                ? `<details class="decision-audit"><summary>Lifecycle policy applied</summary><div>${escapeHtml(instruction)}</div></details>`
+                                : ''}
+                            <details class="decision-audit">
+                                <summary>Raw auditable lifecycle JSON</summary>
+                                <pre>${escapeHtml(JSON.stringify(transition, null, 2))}</pre>
                             </details>
                         </article>
                     `;
@@ -1433,7 +1847,16 @@
                     const badgeClass = knownRelationships.has(relationship)
                         ? relationship
                         : '';
-                    const label = relationship.replaceAll('_', ' ');
+                    const label = formatLabel(relationship);
+                    const issueType = String(decision.issue_type || ({
+                        contradiction: 'logical_contradiction',
+                        state_transition: 'temporal_change',
+                        coexists: 'compatible',
+                        uncertain: 'uncertainty'
+                    }[relationship] || relationship));
+                    const dimensions = Array.isArray(decision.contradiction_dimensions)
+                        ? decision.contradiction_dimensions
+                        : [];
                     const rationale = decision.rationale
                         ? `<div class="decision-rationale">${escapeHtml(decision.rationale)}</div>`
                         : '';
@@ -1446,24 +1869,74 @@
                         : policy?.selected_evidence === 'new'
                             ? decision.new_fact_id
                             : null;
+                    const oldObservation = evidenceByFactId.get(decision.old_fact_id);
+                    const newObservation = evidenceByFactId.get(decision.new_fact_id);
+                    const resolvedFactId = selectedFactId || (
+                        relationship === 'state_transition' ? decision.new_fact_id : null
+                    );
+                    const resolvedObservation = resolvedFactId
+                        ? evidenceByFactId.get(resolvedFactId)
+                        : null;
+                    const resolvedClaim = resolvedObservation ? `
+                        <div class="policy-resolution">
+                            <div class="policy-resolution-title">Resolved current claim</div>
+                            <div class="evidence-triple">${escapeHtml(resolvedObservation.subject)} —${escapeHtml(resolvedObservation.relation)}→ ${escapeHtml(resolvedObservation.object)}</div>
+                            <div class="evidence-meta">Fact ID: ${escapeHtml(resolvedFactId)}</div>
+                        </div>
+                    ` : '';
+                    const action = policy?.action || (
+                        policy?.selected_evidence === 'old' ? 'accept_old' :
+                            policy?.selected_evidence === 'new' ? 'accept_new' : null
+                    );
+                    const policyInstruction = payload.policy_definition?.instructions?.[
+                        decision.policy_applied_for
+                    ]?.resolution;
                     const policyDetails = policy ? `
                         <div class="policy-resolution">
-                            <div class="policy-resolution-title">Evidence handling · ${escapeHtml(decision.policy_name)}</div>
+                            <div class="policy-resolution-title">Evidence handling · ${escapeHtml(decision.policy_name)} v${escapeHtml(decision.policy_version || 'unknown')}</div>
+                            ${action ? `<span class="action-chip">${escapeHtml(formatLabel(action))}</span>` : ''}
                             ${selectedFactId
                                 ? `<div><strong>Selected operational evidence:</strong> ${escapeHtml(selectedFactId)}</div>`
                                 : ''}
+                            ${policy.review_required ? '<div><strong>Human review:</strong> required</div>' : ''}
+                            ${policy.qualified_assertion
+                                ? `<div><strong>Qualified assertion:</strong> ${escapeHtml(policy.qualified_assertion)}</div>`
+                                : ''}
+                            <div class="decision-explanation-label">Resolution justification</div>
                             <div>${escapeHtml(policy.resolution)}</div>
+                            ${policyInstruction
+                                ? `<details class="decision-audit"><summary>Policy rule applied</summary><div>${escapeHtml(policyInstruction)}</div></details>`
+                                : ''}
                         </div>
                     ` : '';
                     return `
                         <article class="decision-card">
                             <div class="decision-card-row">
-                                <span class="decision-badge ${badgeClass}">${escapeHtml(label)}</span>
+                                <div class="decision-badge-group">
+                                    <span class="decision-badge issue-badge ${escapeHtml(issueType)}">${escapeHtml(formatLabel(issueType))}</span>
+                                    <span class="lifecycle-badge">graph: ${escapeHtml(label)}</span>
+                                </div>
+                            </div>
+                            <div class="dimension-list">${dimensions.length
+                                ? dimensions.map(dimension => `<span class="dimension-chip">${escapeHtml(formatLabel(dimension))}</span>`).join('')
+                                : '<span class="source-missing">No contradiction dimensions recorded.</span>'}
                             </div>
                             <div class="decision-pair">${escapeHtml(decision.old_fact_id)} → ${escapeHtml(decision.new_fact_id)}</div>
                             ${transition}
+                            <div class="decision-explanation-label">Classifier rationale</div>
                             ${rationale}
+                            <div class="decision-explanation-label">Source evidence used</div>
+                            <div class="source-missing">Scores below are supplied claim metadata, not hidden model estimates.</div>
+                            <div class="source-comparison">
+                                ${renderSourceProfile(oldObservation, 'Old claim', resolvedFactId)}
+                                ${renderSourceProfile(newObservation, 'New claim', resolvedFactId)}
+                            </div>
+                            ${resolvedClaim}
                             ${policyDetails}
+                            <details class="decision-audit">
+                                <summary>Raw auditable decision JSON</summary>
+                                <pre>${escapeHtml(JSON.stringify(decision, null, 2))}</pre>
+                            </details>
                         </article>
                     `;
                 }).join('');
@@ -1478,9 +1951,61 @@
                         ${evidenceCards || '<div class="decision-empty">No raw observations attached to this snapshot.</div>'}
                     </section>
                     <div class="decision-list">
-                        ${cards || '<div class="decision-empty">No pairwise decisions for this observation.</div>'}
+                        ${lifecycleCards}
+                        ${cards || (!lifecycleCards ? '<div class="decision-empty">No reconciliation steps for this observation.</div>' : '')}
                     </div>
                 `;
+            }
+
+            function renderEvaluationMetrics() {
+                const panel = document.getElementById('evaluationPanel');
+                const reports = payload.evaluation_reports || {};
+                const systems = Object.keys(reports);
+                if (!systems.length) {
+                    panel.hidden = true;
+                    return;
+                }
+                const metricNames = [
+                    'issue_type_accuracy',
+                    'dimension_micro_recall',
+                    'resolution_accuracy',
+                    'policy_violation_rate',
+                    'lifecycle_resolution_accuracy',
+                    'audit_preservation_rate'
+                ].filter(metric => systems.some(system => Number.isFinite(reports[system]?.[metric])));
+                const policyReport = reports.policy_llm;
+                const genericReport = reports.generic_llm;
+                const formatMetric = value => Number.isFinite(value)
+                    ? `${(value * 100).toFixed(1)}%`
+                    : '—';
+                const formatDelta = (metric, value) => {
+                    if (!Number.isFinite(value)) return '—';
+                    const beneficial = metric === 'policy_violation_rate' ? -value : value;
+                    const sign = value > 0 ? '+' : '';
+                    return `<span class="evaluation-delta ${beneficial > 0 ? 'positive' : beneficial < 0 ? 'negative' : ''}">${sign}${(value * 100).toFixed(1)} pp</span>`;
+                };
+                const headings = systems.map(system => `
+                    <th class="${system === payload.current_system ? 'current-system' : ''}">${escapeHtml(formatLabel(system))}</th>
+                `).join('');
+                const showDelta = policyReport && genericReport;
+                const rows = metricNames.map(metric => {
+                    const values = systems.map(system => `
+                        <td class="${system === payload.current_system ? 'current-system' : ''}">${formatMetric(reports[system]?.[metric])}</td>
+                    `).join('');
+                    const delta = showDelta
+                        ? `<td>${formatDelta(metric, policyReport[metric] - genericReport[metric])}</td>`
+                        : '';
+                    return `<tr><td>${escapeHtml(formatLabel(metric))}</td>${values}${delta}</tr>`;
+                }).join('');
+                panel.innerHTML = `
+                    <h2>Policy alignment metrics</h2>
+                    <p>Policy-conditioned and dry-run results from the same benchmark. Delta is policy minus dry run; lower policy-violation rate is better.</p>
+                    <table class="evaluation-table">
+                        <thead><tr><th>Metric</th>${headings}${showDelta ? '<th>Delta</th>' : ''}</tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                `;
+                panel.hidden = false;
             }
 
             function manualOverlaysForSnapshot(targetIndex) {
@@ -1931,8 +2456,48 @@
                 activateSnapshot(visibleSnapshotIndices[nextPosition]);
             }
 
+            function findObservationByFactId(rawFactId) {
+                const factId = String(rawFactId || '').trim();
+                const status = document.getElementById('factFinderStatus');
+                status.classList.remove('error');
+
+                if (!factId) {
+                    foundFactId = null;
+                    status.textContent = 'Enter a fact_id to find an observation.';
+                    status.classList.add('error');
+                    return;
+                }
+
+                const match = evidenceTimeline.find(entry =>
+                    entry?.observation?.fact_id === factId
+                );
+                if (!match || !Number.isInteger(match.snapshot_index)) {
+                    foundFactId = null;
+                    status.textContent = `No observation found for fact_id “${factId}”.`;
+                    status.classList.add('error');
+                    return;
+                }
+
+                foundFactId = factId;
+                if (policyOnlySnapshots) {
+                    policyOnlySnapshots = false;
+                }
+                selectedIssueType = 'all';
+                visibleSnapshotIndices = allSnapshotIndices;
+
+                const targetIndex = match.snapshot_index;
+                if (targetIndex === snapshotIndex) {
+                    renderSnapshotControls();
+                    renderDecisions();
+                } else {
+                    activateSnapshot(targetIndex);
+                }
+                status.textContent = `Found in interval ${targetIndex + 1}: ${snapshots[targetIndex].label}`;
+            }
+
             function setPolicyOnlySnapshots(enabled) {
                 policyOnlySnapshots = Boolean(enabled) && policySnapshotIndices.length > 0;
+                selectedIssueType = 'all';
                 visibleSnapshotIndices = policyOnlySnapshots
                     ? policySnapshotIndices
                     : allSnapshotIndices;
@@ -1943,6 +2508,30 @@
                         ?? visibleSnapshotIndices[visibleSnapshotIndices.length - 1];
                 }
 
+                if (nextIndex === snapshotIndex) {
+                    renderSnapshotControls();
+                } else {
+                    activateSnapshot(nextIndex);
+                }
+            }
+
+            function setIssueTypeFilter(issueType) {
+                selectedIssueType = availableIssueTypes.includes(issueType)
+                    ? issueType
+                    : 'all';
+                policyOnlySnapshots = false;
+                visibleSnapshotIndices = selectedIssueType === 'all'
+                    ? allSnapshotIndices
+                    : allSnapshotIndices.filter(index =>
+                        Array.isArray(snapshots[index].issue_types) &&
+                        snapshots[index].issue_types.includes(selectedIssueType)
+                    );
+
+                let nextIndex = snapshotIndex;
+                if (!visibleSnapshotIndices.includes(nextIndex)) {
+                    nextIndex = visibleSnapshotIndices.find(index => index >= snapshotIndex)
+                        ?? visibleSnapshotIndices[0];
+                }
                 if (nextIndex === snapshotIndex) {
                     renderSnapshotControls();
                 } else {
@@ -2867,6 +3456,9 @@
                 document.getElementById('policyOnlySnapshots').addEventListener('change', event => {
                     setPolicyOnlySnapshots(event.target.checked);
                 });
+                document.getElementById('issueTypeFilter').addEventListener('change', event => {
+                    setIssueTypeFilter(event.target.value);
+                });
                 document.getElementById('showContradictionOverrideCard').addEventListener('change', event => {
                     showContradictionOverrideCard = event.target.checked;
                     renderManualOverrides();
@@ -2968,6 +3560,20 @@
                     }
                 });
 
+                const factIdInput = document.getElementById('factIdInput');
+                document.getElementById('factFinderForm').addEventListener('submit', event => {
+                    event.preventDefault();
+                    findObservationByFactId(factIdInput.value);
+                });
+                factIdInput.addEventListener('keydown', event => {
+                    if (event.key === 'Escape') {
+                        factIdInput.value = '';
+                        foundFactId = null;
+                        document.getElementById('factFinderStatus').textContent = '';
+                        renderDecisions();
+                    }
+                });
+
                 document.querySelectorAll('.tab').forEach(tab => {
                     tab.addEventListener('click', event => {
                         const target = event.currentTarget;
@@ -3006,6 +3612,7 @@
             renderSnapshotControls();
             renderDecisions();
             renderManualOverrides();
+            renderEvaluationMetrics();
             // renderRelationsTable();
             // renderInsights();
 

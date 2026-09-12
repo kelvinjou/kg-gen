@@ -15,6 +15,7 @@ from kg_gen.models import Graph
 
 from experiments.temporal_state.ledger import ResolutionPolicy
 from experiments.temporal_state.models import (
+    LifecycleTransition,
     Observation,
     ReconciliationDecision,
     Relation,
@@ -358,17 +359,15 @@ def write_snapshot_viewer(
             raise ValueError("snapshot dataset paths must end in .json")
         if resolved_data_path.parent != destination.parent:
             raise ValueError("snapshot datasets must be beside the HTML viewer")
-        dataset_entries.append(
-            {"version": version, "path": resolved_data_path.name}
-        )
+        dataset_entries.append({"version": version, "path": resolved_data_path.name})
 
     data_config = {
         "datasets": dataset_entries,
         "default_version": selected_default,
     }
-    serialized_config = json.dumps(
-        data_config, ensure_ascii=False, indent=2
-    ).replace("</", "<\\/")
+    serialized_config = json.dumps(data_config, ensure_ascii=False, indent=2).replace(
+        "</", "<\\/"
+    )
     html = HTML_TEMPLATE.replace("<!--DATA-->", "{}").replace(
         "<!--DATA_CONFIG-->", serialized_config
     )
@@ -437,18 +436,27 @@ def _build_snapshot_payload(
             Iterable[ReconciliationDecision],
             Observation | Iterable[Observation],
         ]
+        | tuple[
+            str,
+            Graph,
+            Iterable[ReconciliationDecision],
+            Observation | Iterable[Observation],
+            Iterable[LifecycleTransition],
+        ]
     ],
     *,
     policy_only_snapshots: bool = False,
     policy: ResolutionPolicy | None = None,
+    evaluation_reports: Mapping[str, Any] | None = None,
+    current_system: str | None = None,
 ) -> dict[str, Any]:
     """Build the serializable timeline payload for graph snapshots.
 
     Args:
-        snapshots: Ordered ``(label, graph)``, ``(label, graph, decisions)``, or
-            ``(label, graph, decisions, observations)`` tuples. The fourth value
-            accepts one raw Observation or an iterable of them. Labels are displayed
-            beside the timeline slider and should identify each time interval.
+        snapshots: Ordered ``(label, graph)``, ``(label, graph, decisions)``,
+            ``(label, graph, decisions, observations)``, or five-value tuples that
+            append lifecycle transitions. The fourth value accepts one raw
+            Observation or an iterable of them. Labels identify each time interval.
         policy_only_snapshots: Initial state of the HTML policy-event filter.
             All snapshots are still computed and embedded when this is True.
         policy: Resolution policy whose instruction keys qualify a snapshot for
@@ -463,6 +471,7 @@ def _build_snapshot_payload(
     enabled_relationships = policy.policy_relationships if policy is not None else ()
     enabled_relationship_set = set(enabled_relationships)
     inferred_policy_relationships: list[Relationship] = []
+    inferred_issue_types: list[str] = []
 
     rendered_snapshots = []
     evidence_timeline = []
@@ -473,13 +482,18 @@ def _build_snapshot_payload(
             label, graph = snapshot
             decisions: Iterable[ReconciliationDecision] = ()
             observations: Observation | Iterable[Observation] = ()
+            lifecycle_transitions: Iterable[LifecycleTransition] = ()
         elif len(snapshot) == 3:
             label, graph, decisions = snapshot
             observations = ()
+            lifecycle_transitions = ()
         elif len(snapshot) == 4:
             label, graph, decisions, observations = snapshot
+            lifecycle_transitions = ()
+        elif len(snapshot) == 5:
+            label, graph, decisions, observations, lifecycle_transitions = snapshot
         else:
-            raise ValueError("snapshot tuples must contain 2, 3, or 4 values")
+            raise ValueError("snapshot tuples must contain 2, 3, 4, or 5 values")
 
         observation_list = (
             [observations]
@@ -509,6 +523,14 @@ def _build_snapshot_payload(
         added_relations = current_relations - previous_relations
         removed_relations = previous_relations - current_relations
         decision_list = list(decisions)
+        lifecycle_transition_list = list(lifecycle_transitions)
+        if not all(
+            isinstance(transition, LifecycleTransition)
+            for transition in lifecycle_transition_list
+        ):
+            raise TypeError(
+                "snapshot lifecycle entries must be LifecycleTransition instances"
+            )
         epistemic_relationships = sorted(
             {decision.relationship for decision in decision_list}
         )
@@ -519,6 +541,16 @@ def _build_snapshot_payload(
                 if decision.policy_applied_for is not None
             }
         )
+        issue_types = sorted(
+            {
+                decision.issue_type
+                for decision in decision_list
+                if decision.issue_type is not None
+            }
+        )
+        for issue_type in issue_types:
+            if issue_type not in inferred_issue_types:
+                inferred_issue_types.append(issue_type)
         for relationship in policy_resolutions:
             if relationship not in inferred_policy_relationships:
                 inferred_policy_relationships.append(relationship)
@@ -552,9 +584,9 @@ def _build_snapshot_payload(
                     observation["relation"],
                     observation["object"],
                 )
-                override_relations = (
-                    set(graph.relations) - conflicting_relations
-                ) | {relation}
+                override_relations = (set(graph.relations) - conflicting_relations) | {
+                    relation
+                }
                 override_graph = graph.model_copy(
                     update={
                         "entities": {
@@ -562,9 +594,7 @@ def _build_snapshot_payload(
                             for subject, _, object_ in override_relations
                             for entity in (subject, object_)
                         },
-                        "edges": {
-                            predicate for _, predicate, _ in override_relations
-                        },
+                        "edges": {predicate for _, predicate, _ in override_relations},
                         "relations": override_relations,
                     }
                 )
@@ -595,12 +625,18 @@ def _build_snapshot_payload(
                 "decisions": [
                     decision.model_dump(mode="json") for decision in decision_list
                 ],
+                "lifecycle_transitions": [
+                    transition.model_dump(mode="json")
+                    for transition in lifecycle_transition_list
+                ],
                 "epistemic_relationships": epistemic_relationships,
+                "issue_types": issue_types,
                 "policy_relevant": bool(
                     set(epistemic_relationships) & enabled_relationship_set
                     if policy is not None
                     else policy_resolutions
-                ),
+                )
+                or bool(lifecycle_transition_list),
                 "policy_resolutions": policy_resolutions,
                 "evidence_indices": evidence_indices,
                 "manual_overrides": manual_overrides,
@@ -620,6 +656,8 @@ def _build_snapshot_payload(
         ),
         "snapshots": rendered_snapshots,
         "evidence_timeline": evidence_timeline,
+        "evaluation_reports": dict(evaluation_reports or {}),
+        "current_system": current_system,
         "timeline_config": {
             "policy_only_snapshots": policy_only_snapshots,
             "enabled_policy_relationships": list(
@@ -627,6 +665,7 @@ def _build_snapshot_payload(
                 if policy is not None
                 else inferred_policy_relationships
             ),
+            "available_issue_types": inferred_issue_types,
         },
     }
 
@@ -641,11 +680,20 @@ def write_snapshot_data(
             Iterable[ReconciliationDecision],
             Observation | Iterable[Observation],
         ]
+        | tuple[
+            str,
+            Graph,
+            Iterable[ReconciliationDecision],
+            Observation | Iterable[Observation],
+            Iterable[LifecycleTransition],
+        ]
     ],
     output_path: str | Path,
     *,
     policy_only_snapshots: bool = False,
     policy: ResolutionPolicy | None = None,
+    evaluation_reports: Mapping[str, Any] | None = None,
+    current_system: str | None = None,
 ) -> Path:
     """Write graph snapshots and raw reconciliation output to a JSON dataset."""
     destination = Path(output_path).resolve()
@@ -655,6 +703,8 @@ def write_snapshot_data(
         snapshots,
         policy_only_snapshots=policy_only_snapshots,
         policy=policy,
+        evaluation_reports=evaluation_reports,
+        current_system=current_system,
     )
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(
@@ -673,18 +723,29 @@ def visualize_snapshots(
             Iterable[ReconciliationDecision],
             Observation | Iterable[Observation],
         ]
+        | tuple[
+            str,
+            Graph,
+            Iterable[ReconciliationDecision],
+            Observation | Iterable[Observation],
+            Iterable[LifecycleTransition],
+        ]
     ],
     output_path: str | None = None,
     *,
     open_in_browser: bool = False,
     policy_only_snapshots: bool = False,
     policy: ResolutionPolicy | None = None,
+    evaluation_reports: Mapping[str, Any] | None = None,
+    current_system: str | None = None,
 ) -> Path:
     """Render graph snapshots as one self-contained HTML visualization."""
     payload = _build_snapshot_payload(
         snapshots,
         policy_only_snapshots=policy_only_snapshots,
         policy=policy,
+        evaluation_reports=evaluation_reports,
+        current_system=current_system,
     )
     return _write_visualization(
         payload,

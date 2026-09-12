@@ -1,0 +1,24 @@
+{
+  "name": "vaccine_claim_resolution",
+  "version": "1.1.0",
+  "domain": "Vaccine evidence and immunization guidance",
+  "instructions": {
+    "contradiction": {
+      "resolution": "First align product, presentation, age group, population, endpoint, geography, and validity interval. Treat different values as a logical contradiction only when those scopes overlap. Prefer a current regulator-approved label for dosing and indication claims and current public-health guidance for recommendation claims; recency alone does not outrank a source of record. Preserve historical guidance with its interval. Treat administration relations as multi-valued unless the schema declares single cardinality. Distinguish contraindication from precaution and explicit negation from missing evidence. For numerical results with different estimands, retain and qualify both. For sparse safety evidence, do not convert failure to establish association into proof of no risk: defer or qualify and require review. Never delete either sourced claim."
+    },
+    "state_transition": {
+      "resolution": "Accept the claim valid for the requested time, close the superseded interval, and retain the historical assertion and provenance."
+    },
+    "coexists": {
+      "resolution": "Retain both when relation cardinality permits multiple values or when the claims occupy different scoped dimensions."
+    },
+    "uncertain": {
+      "resolution": "Defer an operational winner, retain both sourced claims, and mark the question for review."
+    }
+  },
+  "lifecycle_instructions": {
+    "expiration": {
+      "resolution": "When an observation reaches its valid_to boundary, transition it to expired before reconciling later observations. Remove it from the current operational graph while preserving its historical interval, source evidence, and provenance. Do not treat expiration as a retraction or as evidence that the observation was false. Flag the expiration as an auditable lifecycle step, and require review when the expired observation leaves no valid operational alternative."
+    }
+  }
+}

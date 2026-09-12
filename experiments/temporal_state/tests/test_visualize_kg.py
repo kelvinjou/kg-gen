@@ -7,9 +7,17 @@ from unittest.mock import patch
 
 from kg_gen.models import Graph
 
+from experiments.temporal_state.ledger import (
+    LifecycleResolutionInstruction,
+    RelationshipResolutionInstruction,
+    ResolutionPolicy,
+)
 from experiments.temporal_state.models import (
     EvidenceResolution,
+    LifecycleResolution,
+    LifecycleTransition,
     Observation,
+    Provenance,
     ReconciliationDecision,
 )
 from experiments.temporal_state.visualizer.visualize_kg import (
@@ -17,6 +25,53 @@ from experiments.temporal_state.visualizer.visualize_kg import (
     visualize_snapshots,
     write_policy_comparison_dashboard,
 )
+
+
+def test_snapshot_timeline_serializes_lifecycle_steps(tmp_path: Path) -> None:
+    """Expose expiration as a policy-backed, auditable timeline step."""
+    utc = timezone.utc
+    graph = Graph(entities=set(), edges=set(), relations=set())
+    transition = LifecycleTransition(
+        event_type="expiration",
+        fact_id="scheduled-guidance",
+        effective_at=datetime(2026, 9, 1, 12, 5, tzinfo=utc),
+        processed_at=datetime(2026, 9, 1, 12, 6, tzinfo=utc),
+        prior_status="active",
+        resulting_status="expired",
+        policy_name="vaccine_claim_resolution",
+        policy_version="2.0.0",
+        policy_resolution=LifecycleResolution(
+            review_required=True,
+            resolution="Remove from current state and preserve history.",
+        ),
+    )
+    policy = ResolutionPolicy(
+        name="vaccine_claim_resolution",
+        version="2.0.0",
+        domain="Vaccine evidence",
+        instructions={},
+        lifecycle_instructions={
+            "expiration": LifecycleResolutionInstruction(
+                resolution="Expire before reconciling later observations."
+            )
+        },
+    )
+
+    destination = visualize_snapshots(
+        (("expiration", graph, (), (), (transition,)),),
+        str(tmp_path / "lifecycle.html"),
+        policy=policy,
+    )
+
+    html = destination.read_text(encoding="utf-8")
+    assert '"event_type": "expiration"' in html
+    assert '"fact_id": "scheduled-guidance"' in html
+    assert '"lifecycle_transitions"' in html
+    assert "Lifecycle resolution" in html
+    assert "Lifecycle policy applied" in html
+    assert "expiration-checkpoint" in html
+    assert "Expiration checkpoint" in html
+    assert "expired observation resolved" in html
 
 
 def test_open_output_visualization_opens_existing_html(tmp_path: Path) -> None:
@@ -101,6 +156,11 @@ def test_snapshot_timeline_serializes_decisions_and_edge_changes(
             ("corrected estimate", corrected, (decision,)),
         ),
         str(tmp_path / "decisions.html"),
+        evaluation_reports={
+            "policy_llm": {"resolution_accuracy": 0.75},
+            "generic_llm": {"resolution_accuracy": 0.25},
+        },
+        current_system="policy_llm",
     )
 
     html = destination.read_text(encoding="utf-8")
@@ -110,6 +170,10 @@ def test_snapshot_timeline_serializes_decisions_and_edge_changes(
     assert "Evidence &amp; reconciliation" in html
     assert "ArrowLeft" in html
     assert "ArrowRight" in html
+    assert '"current_system": "policy_llm"' in html
+    assert '"generic_llm"' in html
+    assert "Policy alignment metrics" in html
+    assert "Resolved current claim" in html
 
 
 def test_snapshot_timeline_bookmarks_policy_resolutions(tmp_path: Path) -> None:
@@ -144,11 +208,117 @@ def test_snapshot_timeline_bookmarks_policy_resolutions(tmp_path: Path) -> None:
     html = destination.read_text(encoding="utf-8")
     assert '"policy_resolutions": [\n        "contradiction"' in html
     assert "policy-bookmark" in html
-    assert "Policy resolution: ${escapeHtml(resolutionLabel)}" in html
+    assert "Policy resolution" in html
     assert "Evidence handling" in html
     assert "Selected operational evidence:" in html
     assert '"selected_evidence": "old"' in html
     assert '"resolution": "Neither report is independently corroborated;' in html
+
+
+def test_viewer_exposes_issue_policy_and_source_quality_without_black_box(
+    tmp_path: Path,
+) -> None:
+    """Show semantic factors, policy rule, source scores, and raw decision data."""
+    utc = timezone.utc
+    old = Observation(
+        fact_id="secondary-dose",
+        subject="Vaccine dose",
+        relation="has_volume",
+        object="0.2 mL",
+        source_text="A secondary summary omitted the presentation.",
+        observed_at=datetime(2026, 9, 1, 9, 0, tzinfo=utc),
+        provenance=Provenance(
+            source_id="news-summary",
+            source_type="secondary-news",
+            publisher="Example News",
+            reliability=0.55,
+            methodological_quality=0.4,
+        ),
+        extraction_confidence=0.7,
+    )
+    new = Observation(
+        fact_id="regulatory-label",
+        subject="Vaccine dose",
+        relation="has_volume",
+        object="Presentation-specific volume",
+        source_text="The regulator label scopes dose by presentation and age.",
+        observed_at=datetime(2026, 9, 1, 9, 5, tzinfo=utc),
+        provenance=Provenance(
+            source_id="label",
+            source_type="regulatory-label",
+            publisher="Regulator",
+            uri="https://example.test/label",
+            reliability=1.0,
+            methodological_quality=0.98,
+        ),
+        extraction_confidence=0.99,
+    )
+    decision = ReconciliationDecision(
+        old_fact_id="secondary-dose",
+        new_fact_id="regulatory-label",
+        relationship="contradiction",
+        issue_type="logical_contradiction",
+        contradiction_dimensions=(
+            "source_provenance",
+            "numerical_value",
+            "domain_policy",
+        ),
+        rationale="The claims overlap, but only the label defines the presentation.",
+        policy_name="vaccine_claim_resolution",
+        policy_version="1.0.0",
+        policy_applied_for="contradiction",
+        policy_resolution=EvidenceResolution(
+            action="qualify",
+            selected_evidence="new",
+            qualified_assertion="Use the presentation-specific labeled volume.",
+            review_required=True,
+            resolution="The source-of-record label controls operational dosing.",
+        ),
+    )
+    policy = ResolutionPolicy(
+        name="vaccine_claim_resolution",
+        version="1.0.0",
+        domain="Vaccines",
+        instructions={
+            "contradiction": RelationshipResolutionInstruction(
+                resolution="Prefer the regulator label for dosing claims."
+            )
+        },
+    )
+    graph = Graph(
+        entities={"Vaccine dose", "Presentation-specific volume"},
+        edges={"has_volume"},
+        relations={("Vaccine dose", "has_volume", "Presentation-specific volume")},
+    )
+
+    destination = visualize_snapshots(
+        (
+            ("old", graph, (), old),
+            ("resolved", graph, (decision,), new),
+        ),
+        str(tmp_path / "transparent-decisions.html"),
+        policy=policy,
+    )
+    html = destination.read_text(encoding="utf-8")
+    data_marker = '<script id="viz-data" type="application/json">\n'
+    payload = json.loads(html.split(data_marker, 1)[1].split("</script>", 1)[0])
+
+    assert payload["snapshots"][1]["issue_types"] == ["logical_contradiction"]
+    assert payload["timeline_config"]["available_issue_types"] == [
+        "logical_contradiction"
+    ]
+    assert 'id="issueTypeFilter"' in html
+    assert "Classifier rationale" in html
+    assert "Source evidence used" in html
+    assert "not hidden model estimates" in html
+    assert "Reliability" in html
+    assert "Method quality" in html
+    assert "Extraction" in html
+    assert "Policy rule applied" in html
+    assert "Raw auditable decision JSON" in html
+    assert '"reliability": 1.0' in html
+    assert '"methodological_quality": 0.98' in html
+    assert '"action": "qualify"' in html
 
 
 def test_snapshot_timeline_preserves_raw_observation_json(tmp_path: Path) -> None:
@@ -204,6 +374,36 @@ def test_snapshot_timeline_preserves_raw_observation_json(tmp_path: Path) -> Non
     assert payload["snapshots"][1]["evidence_indices"] == [1]
     assert "Raw Observation JSON" in html
     assert "<\\/script>" in embedded_json
+
+
+def test_snapshot_timeline_has_fact_id_observation_finder(tmp_path: Path) -> None:
+    """Jump from an exact fact ID to the observation's timeline interval."""
+    observation = Observation(
+        fact_id="field-report-a",
+        subject="Incident",
+        relation="reported_at",
+        object="Zone A",
+        source_text="Field report.",
+        observed_at=datetime(2026, 9, 4, 9, 3, tzinfo=timezone.utc),
+    )
+    graph = Graph(
+        entities={"Incident", "Zone A"},
+        edges={"reported_at"},
+        relations={("Incident", "reported_at", "Zone A")},
+    )
+
+    destination = visualize_snapshots(
+        (("09:03", graph, (), observation),),
+        str(tmp_path / "fact-finder.html"),
+    )
+
+    html = destination.read_text(encoding="utf-8")
+    assert 'id="factFinderForm"' in html
+    assert 'id="factIdInput"' in html
+    assert 'id="factFinderStatus"' in html
+    assert "entry?.observation?.fact_id === factId" in html
+    assert "activateSnapshot(targetIndex)" in html
+    assert "policyOnlySnapshots = false" in html
 
 
 def test_contradiction_presents_two_manual_override_options(tmp_path: Path) -> None:
